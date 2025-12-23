@@ -10,6 +10,7 @@
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }
         public bool IsActive { get; set; } = true;
+        public ICollection<CartMaster>? CartMasters { get; set; }
 
     }
 }

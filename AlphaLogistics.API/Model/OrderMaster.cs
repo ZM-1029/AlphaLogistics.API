@@ -9,5 +9,9 @@
         public decimal TotalAmount { get; set; }
         public string Status { get; set; }
 
+        public UserMaster? UserMaster { get; set; }
+        public ICollection<OrderItems>? OrderItems { get; set; }
+
+
     }
 }
