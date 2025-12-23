@@ -1,11 +1,11 @@
 ﻿namespace AlphaLogistics.API.Model
 {
-    public class CartMaster
+    public class OrderItems
     {
         public int Id { get; set; }
+        public int OrderId { get; set; }
         public int ProductId { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
-        public DateTime CreateAt { get; set; }
     }
 }
