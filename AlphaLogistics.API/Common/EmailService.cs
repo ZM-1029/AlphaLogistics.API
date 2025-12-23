@@ -1,8 +1,8 @@
-﻿using DocumentFormat.OpenXml.Wordprocessing;
+﻿
+using AlphaLogistics.API.Common;
 using System.Net;
 using System.Net.Mail;
 using WALMS.API.Common;
-using WALMS.API.Models;
 
 public static class EmailService
 {

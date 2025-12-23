@@ -13,10 +13,15 @@ namespace AlphaLogistics.API.Model
         public virtual DbSet<OrderItems> OrderItems { get; set; }
         public virtual DbSet<UserMaster> UserMasters { get; set; }
 
-        public AlphaLogisticsContext(DbContextOptions<AlphaLogisticsContext> options)
-        : base(options)
-        {
+        /* public AlphaLogisticsContext(DbContextOptions<AlphaLogisticsContext> options)
+         : base(options)
+         {
 
+         }*/
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.UseNpgsql(
+                "Host=zoumaapp.com;Port=5432;Database=AlphaLogisticsDb;Username=postgres;Password=zoumapg!@#admin;");
         }
     }
 }

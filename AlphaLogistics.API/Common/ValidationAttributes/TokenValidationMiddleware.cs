@@ -1,8 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using System.Text;
-using WALMS.API.Models;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace WALMS.API.Common.ValidationAttributes
@@ -36,7 +33,7 @@ namespace WALMS.API.Common.ValidationAttributes
         }
 
         // Method called for each HTTP request
-        public async Task Invoke(HttpContext context)
+        /*public async Task Invoke(HttpContext context)
         {
             var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
             if (token != null)
@@ -45,10 +42,10 @@ namespace WALMS.API.Common.ValidationAttributes
                 await _next.Invoke(context);
             else
                 await ReturnInvalidTokenResponse(context, "Token is missing");
-        }
+        }*/
 
         // Method to validate the JWT token
-        private async Task ValidateTokenAsync(string token, HttpContext context)
+    /*    private async Task ValidateTokenAsync(string token, HttpContext context)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"]);
@@ -120,6 +117,6 @@ namespace WALMS.API.Common.ValidationAttributes
                 // Default redirect URL if no specific role-based URL is configured
                 return "https://default.example.com/home";
             }
-        }
+        }*/
     }
 }

@@ -1,9 +1,4 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
-using DocumentFormat.OpenXml.Spreadsheet;
-using WALMS.API.Handler;
-using WebApplication1.Models;
-using Windows.Devices.Radios;
-
+﻿
 namespace WALMS.API.Common
 {
 	public static class AppConstants
@@ -235,7 +230,7 @@ namespace WALMS.API.Common
 			
 		}
 
-        public static class LoginUserInfo
+       /* public static class LoginUserInfo
         {
             public static int CreatedBy
             {
@@ -246,7 +241,7 @@ namespace WALMS.API.Common
             {
                 get => UserContext.UserId != null ? Convert.ToInt32(UserContext.UserId) : 100;
             }
-        }
+        }*/
 
        /* public static class LoginUserInfo
 		{
