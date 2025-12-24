@@ -1,9 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AlphaLogistics.API.Model
 {
     public class OrderItems
     {
+        [Key]
         public int Id { get; set; }
 
         [ForeignKey("OrderMaster")]
