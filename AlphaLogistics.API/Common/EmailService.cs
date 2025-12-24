@@ -18,7 +18,7 @@ public static class EmailService
 		var smtpSettings = config.GetSection("SmtpSettings");
        // var enableEmail = config.GetValue<bool>("EnableEmail");
 
-        _smtpOptions = new SmtpOptions
+        _smtpOptions = new  SmtpOptions  
         {
             Host = smtpSettings["Host"],
             Port = int.Parse(smtpSettings["Port"]),
