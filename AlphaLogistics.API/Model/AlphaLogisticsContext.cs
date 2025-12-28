@@ -16,7 +16,7 @@ namespace AlphaLogistics.API.Model
         /* public AlphaLogisticsContext(DbContextOptions<AlphaLogisticsContext> options)
          : base(options)
          {
-
+             
          }*/
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
