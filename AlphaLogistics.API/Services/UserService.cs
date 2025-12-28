@@ -1,5 +1,11 @@
 ﻿using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Model;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace AlphaLogistics.API.Services
 {
@@ -7,18 +13,16 @@ namespace AlphaLogistics.API.Services
     {
         private readonly AlphaLogisticsContext _context;
         private readonly IWebHostEnvironment _environment;
-        private readonly IConfiguration _configuration;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public UserService(
-            AlphaLogisticsContext context,
-            IWebHostEnvironment environment,
-            IConfiguration configuration)
+        public UserService(AlphaLogisticsContext context, IWebHostEnvironment environment, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _environment = environment;
-            _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
         }
 
+        // Helper method to hash password
         private string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();
@@ -26,7 +30,8 @@ namespace AlphaLogistics.API.Services
             return Convert.ToBase64String(hashedBytes);
         }
 
-        private async Task<string?> UploadProfileImage(IFormFile profileImage)
+        
+        private async Task<string?> UploadProfileImage(IFormFile? profileImage)
         {
             if (profileImage == null || profileImage.Length == 0)
                 return null;
@@ -35,7 +40,7 @@ namespace AlphaLogistics.API.Services
             if (!Directory.Exists(uploadsFolder))
                 Directory.CreateDirectory(uploadsFolder);
 
-            var uniqueFileName = Guid.NewGuid().ToString() + "_" + profileImage.FileName;
+            var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(profileImage.FileName)}";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
             using (var fileStream = new FileStream(filePath, FileMode.Create))
@@ -46,9 +51,37 @@ namespace AlphaLogistics.API.Services
             return $"/uploads/profiles/{uniqueFileName}";
         }
 
+        
+        private UserResponseDto ConvertToUserResponseDto(UserMaster user)
+        {
+            var response = new UserResponseDto
+            {
+                Id = user.Id,
+                UserName = user.UserName,
+                Email = user.Email,
+                Phone = user.Phone,
+                Address = user.Address,
+                Role = user.RoleMaster?.Name ?? "User",
+                ProfileImage = user.ProfileImage,
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt
+            };
+
+            if (user.RoleMaster?.Name == "Vendor" && user.VendorMaster != null)
+            {
+                response.VendorName = user.VendorMaster.Name;
+                response.ContactPerson = user.VendorMaster.ContactPerson;
+                response.VendorPhone = user.VendorMaster.Phone;
+                response.VendorEmail = user.VendorMaster.Email;
+                response.VendorAddress = user.VendorMaster.Address;
+            }
+
+            return response;
+        }
+
         public async Task<UserResponseDto> RegisterUserAsync(RegisterUserDto registerDto)
         {
-
+           
             if (await _context.UserMasters.AnyAsync(u => u.Email == registerDto.Email))
                 throw new Exception("Email already exists");
 
@@ -73,81 +106,67 @@ namespace AlphaLogistics.API.Services
                 RoleId = registerDto.RoleId,
                 ProfileImage = profileImageUrl,
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true
+                IsActive = true,
+                RoleMaster = role
             };
 
             _context.UserMasters.Add(user);
             await _context.SaveChangesAsync();
 
-            return new UserResponseDto
-            {
-                Id = user.Id,
-                UserName = user.UserName,
-                Email = user.Email,
-                Phone = user.Phone,
-                Address = user.Address,
-                Role = role.Name,
-                ProfileImage = user.ProfileImage,
-                IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt
-            };
+            return ConvertToUserResponseDto(user);
         }
 
-        public async Task<VendorResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto)
+        public async Task<UserResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto)
         {
+ 
             var vendorRole = await _context.RoleMasters
                 .FirstOrDefaultAsync(r => r.Name == "Vendor" && r.IsActive);
 
             if (vendorRole == null)
                 throw new Exception("Vendor role not found");
 
-            var userRegisterDto = new RegisterUserDto
+            if (await _context.UserMasters.AnyAsync(u => u.Email == registerDto.Email))
+                throw new Exception("Email already exists");
+
+            string? profileImageUrl = null;
+            if (registerDto.ProfileImage != null)
+            {
+                profileImageUrl = await UploadProfileImage(registerDto.ProfileImage);
+            }
+
+            var user = new UserMaster
             {
                 UserName = registerDto.UserName,
                 Email = registerDto.Email,
-                Password = registerDto.Password,
+                Password = HashPassword(registerDto.Password),
                 Phone = registerDto.Phone,
                 Address = registerDto.Address,
                 RoleId = vendorRole.Id,
-                ProfileImage = registerDto.ProfileImage
+                ProfileImage = profileImageUrl,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+                RoleMaster = vendorRole
             };
-
-            var user = await RegisterUserAsync(userRegisterDto);
 
             var vendor = new VendorMaster
             {
-                UserId = user.Id,
                 Name = registerDto.VendorName,
                 ContactPerson = registerDto.ContactPerson,
                 Phone = registerDto.VendorPhone,
                 Email = registerDto.VendorEmail,
                 Address = registerDto.VendorAddress,
                 CreatedAt = DateTime.UtcNow,
-                IsActive = true
+                IsActive = true,
+                UserMaster = user
             };
 
+            user.VendorMaster = vendor;
+
+            _context.UserMasters.Add(user);
             _context.VendorMasters.Add(vendor);
             await _context.SaveChangesAsync();
 
-            var vendorResponse = new VendorResponseDto
-            {
-                Id = user.Id,
-                UserName = user.UserName,
-                Email = user.Email,
-                Phone = user.Phone,
-                Address = user.Address,
-                Role = user.Role,
-                ProfileImage = user.ProfileImage,
-                IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt,
-                VendorName = vendor.Name,
-                ContactPerson = vendor.ContactPerson,
-                VendorEmail = vendor.Email,
-                VendorPhone = vendor.Phone,
-                VendorAddress = vendor.Address
-            };
-
-            return vendorResponse;
+            return ConvertToUserResponseDto(user);
         }
 
         public async Task<string> LoginAsync(LoginDto loginDto, HttpContext httpContext)
@@ -168,9 +187,7 @@ namespace AlphaLogistics.API.Services
             new Claim("UserId", user.Id.ToString())
         };
 
-            var claimsIdentity = new ClaimsIdentity(
-                claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
+            var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var authProperties = new AuthenticationProperties
             {
                 IsPersistent = loginDto.RememberMe,
@@ -187,42 +204,24 @@ namespace AlphaLogistics.API.Services
             return "Login successful";
         }
 
-        public async Task<UserResponseDto> GetCurrentUserAsync(HttpContext httpContext)
-        {
-            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
-                throw new Exception("User not authenticated");
-
-            return await GetUserByIdAsync(userId);
-        }
-
         public async Task<UserResponseDto> GetUserByIdAsync(int id)
         {
             var user = await _context.UserMasters
                 .Include(u => u.RoleMaster)
+                .Include(u => u.VendorMaster)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (user == null)
                 throw new Exception("User not found");
 
-            return new UserResponseDto
-            {
-                Id = user.Id,
-                UserName = user.UserName,
-                Email = user.Email,
-                Phone = user.Phone,
-                Address = user.Address,
-                Role = user.RoleMaster?.Name ?? "User",
-                ProfileImage = user.ProfileImage,
-                IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt
-            };
+            return ConvertToUserResponseDto(user);
         }
 
         public async Task<List<UserResponseDto>> GetAllUsersAsync(int? roleId = null)
         {
             var query = _context.UserMasters
                 .Include(u => u.RoleMaster)
+                .Include(u => u.VendorMaster)
                 .AsQueryable();
 
             if (roleId.HasValue)
@@ -230,26 +229,18 @@ namespace AlphaLogistics.API.Services
                 query = query.Where(u => u.RoleId == roleId.Value);
             }
 
-            var users = await query.ToListAsync();
+            var users = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
 
-            return users.Select(u => new UserResponseDto
-            {
-                Id = u.Id,
-                UserName = u.UserName,
-                Email = u.Email,
-                Phone = u.Phone,
-                Address = u.Address,
-                Role = u.RoleMaster?.Name ?? "User",
-                ProfileImage = u.ProfileImage,
-                IsActive = u.IsActive,
-                CreatedAt = u.CreatedAt
-            }).ToList();
+            return users.Select(ConvertToUserResponseDto).ToList();
         }
 
         public async Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserDto updateDto)
         {
             var user = await _context.UserMasters
                 .Include(u => u.RoleMaster)
+                .Include(u => u.VendorMaster)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (user == null)
@@ -272,26 +263,127 @@ namespace AlphaLogistics.API.Services
                 user.ProfileImage = await UploadProfileImage(updateDto.ProfileImage);
             }
 
+            if (user.RoleMaster?.Name == "Vendor")
+            {
+                var vendor = user.VendorMaster;
+
+                if (vendor == null)
+                {
+                    vendor = new VendorMaster
+                    {
+                        UserId = user.Id,
+                        CreatedAt = DateTime.UtcNow,
+                        IsActive = true
+                    };
+                    _context.VendorMasters.Add(vendor);
+                    user.VendorMaster = vendor;
+                }
+
+                if (!string.IsNullOrEmpty(updateDto.VendorName))
+                    vendor.Name = updateDto.VendorName;
+
+                if (!string.IsNullOrEmpty(updateDto.ContactPerson))
+                    vendor.ContactPerson = updateDto.ContactPerson;
+
+                if (!string.IsNullOrEmpty(updateDto.VendorPhone))
+                    vendor.Phone = updateDto.VendorPhone;
+
+                if (!string.IsNullOrEmpty(updateDto.VendorEmail))
+                    vendor.Email = updateDto.VendorEmail;
+
+                if (!string.IsNullOrEmpty(updateDto.VendorAddress))
+                    vendor.Address = updateDto.VendorAddress;
+
+                if (updateDto.IsActive.HasValue)
+                    vendor.IsActive = updateDto.IsActive.Value;
+
+                vendor.LastUpdatedAt = DateTime.UtcNow;
+            }
+
             user.LastUpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return new UserResponseDto
-            {
-                Id = user.Id,
-                UserName = user.UserName,
-                Email = user.Email,
-                Phone = user.Phone,
-                Address = user.Address,
-                Role = user.RoleMaster?.Name ?? "User",
-                ProfileImage = user.ProfileImage,
-                IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt
-            };
+            return await GetUserByIdAsync(id);
         }
 
         public async Task<bool> LogoutAsync(HttpContext httpContext)
         {
             await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return true;
+        }
+
+        public async Task<UserResponseDto> GetCurrentUserAsync(HttpContext httpContext)
+        {
+            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                throw new Exception("User not authenticated");
+
+            return await GetUserByIdAsync(userId);
+        }
+
+        public async Task<List<UserResponseDto>> GetAllVendorsAsync(bool? isActive = null)
+        {
+            var query = _context.UserMasters
+                .Include(u => u.RoleMaster)
+                .Include(u => u.VendorMaster)
+                .Where(u => u.RoleMaster.Name == "Vendor")
+                .AsQueryable();
+
+            if (isActive.HasValue)
+            {
+                query = query.Where(u => u.IsActive == isActive.Value);
+            }
+
+            var vendors = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .ToListAsync();
+
+            return vendors.Select(ConvertToUserResponseDto).ToList();
+        }
+
+        public async Task<bool> DeleteVendorAsync(int userId)
+        {
+            var user = await _context.UserMasters
+                .Include(u => u.RoleMaster)
+                .Include(u => u.VendorMaster)
+                .FirstOrDefaultAsync(u => u.Id == userId && u.RoleMaster.Name == "Vendor");
+
+            if (user == null)
+                throw new Exception("Vendor not found");
+
+            user.IsActive = false;
+            user.LastUpdatedAt = DateTime.UtcNow;
+
+            if (user.VendorMaster != null)
+            {
+                user.VendorMaster.IsActive = false;
+                user.VendorMaster.LastUpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RestoreVendorAsync(int userId)
+        {
+            var user = await _context.UserMasters
+                .Include(u => u.RoleMaster)
+                .Include(u => u.VendorMaster)
+                .FirstOrDefaultAsync(u => u.Id == userId && u.RoleMaster.Name == "Vendor");
+
+            if (user == null)
+                throw new Exception("Vendor not found");
+
+            user.IsActive = true;
+            user.LastUpdatedAt = DateTime.UtcNow;
+
+            if (user.VendorMaster != null)
+            {
+                user.VendorMaster.IsActive = true;
+                user.VendorMaster.LastUpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
             return true;
         }
     }

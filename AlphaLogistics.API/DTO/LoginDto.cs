@@ -1,4 +1,6 @@
-﻿namespace AlphaLogistics.API.DTO
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace AlphaLogistics.API.DTO
 {
     public class LoginDto
     {

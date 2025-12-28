@@ -7,5 +7,11 @@
         public string? Address { get; set; }
         public IFormFile? ProfileImage { get; set; }
         public bool? IsActive { get; set; }
+
+        public string? VendorName { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? VendorPhone { get; set; }
+        public string? VendorEmail { get; set; }
+        public string? VendorAddress { get; set; }
     }
 }

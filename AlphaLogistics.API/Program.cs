@@ -1,7 +1,9 @@
 using AlphaLogistics.API.Common;
 using AlphaLogistics.API.Model;
 using AlphaLogistics.API.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,13 +16,35 @@ var builder = WebApplication.CreateBuilder(args);
     options.LogTo(Console.WriteLine, LogLevel.Error);
 
 });*/
+
+builder.Services.AddDbContext<AlphaLogisticsContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("SmtpOptions"));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-//builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<IUserService, UserService>();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddSwaggerGen();
+builder.Services.AddHttpContextAccessor();
+// Learn more about configuring Ope
+//
+// nAPI at https://aka.ms/aspnet/openapi
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "AlphaLogistics API",
+        Version = "v1",
+        Description = "User Management API for AlphaLogistics",
+        Contact = new OpenApiContact
+        {
+            Name = "AlphaLogistics Team",
+            Email = "support@alphalogistics.com"
+        }
+    });
+});
 builder.Services.AddOpenApi();
 
 // Cookie Authentication
@@ -52,6 +76,8 @@ builder.Services.AddAuthorization(options =>
 
 // Register services
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+
 
 // Add CORS 
 builder.Services.AddCors(options =>
@@ -60,8 +86,8 @@ builder.Services.AddCors(options =>
     {
         builder.AllowAnyOrigin()
                .AllowAnyMethod()
-               .AllowAnyHeader()
-               .AllowCredentials();
+               .AllowAnyHeader();
+               //.AllowCredentials();
     });
 });
 
@@ -74,7 +100,14 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseHttpsRedirection();
+app.UseRouting();
 app.UseStaticFiles();
 
 app.UseCors("AllowAll");

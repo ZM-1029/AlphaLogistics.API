@@ -1,4 +1,7 @@
-﻿namespace AlphaLogistics.API.DTO
+﻿using AlphaLogistics.API.Model;
+using System.ComponentModel.DataAnnotations;
+
+namespace AlphaLogistics.API.DTO
 {
     public class RegisterUserDto
     {
@@ -16,7 +19,6 @@
         [Required]
         public string Phone { get; set; }
 
-        [Required]
         public string Address { get; set; }
 
         [Required]
