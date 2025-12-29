@@ -83,7 +83,7 @@ namespace AlphaLogistics.API.Services
                 CreatedAt = product.CreatedAt,
                 LastUpdatedAt = product.LastUpdatedAt,
                 VendorId = product.VendorId,
-                VendorName = product.VendorMaster?.Name ?? string.Empty,
+                VendorName = product.VendorMaster?.VendorName ?? string.Empty,
                 SubCategoryId = product.SubCategoryId,
                 SubCategoryName = product.SubCategoryMaster?.Name ?? string.Empty,
                 CategoryName = product.SubCategoryMaster?.CategoryMaster?.Name ?? string.Empty,
@@ -587,7 +587,7 @@ namespace AlphaLogistics.API.Services
                 .Where(p => p.IsActive &&
                            (p.ProductName.Contains(searchTerm) ||
                             p.Description.Contains(searchTerm) ||
-                            p.VendorMaster.Name.Contains(searchTerm)))
+                            p.VendorMaster.VendorName.Contains(searchTerm)))
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 

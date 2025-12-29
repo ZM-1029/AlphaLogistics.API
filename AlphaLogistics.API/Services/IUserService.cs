@@ -4,18 +4,30 @@ namespace AlphaLogistics.API.Services
 {
     public interface IUserService
     {
+        // User operations
         Task<UserResponseDto> RegisterUserAsync(RegisterUserDto registerDto);
-        Task<UserResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto); 
-        Task<string> LoginAsync(LoginDto loginDto, HttpContext httpContext);
-        Task<UserResponseDto> GetUserByIdAsync(int id); 
+        Task<UserResponseDto> GetUserByIdAsync(int id);
         Task<List<UserResponseDto>> GetAllUsersAsync(int? roleId = null);
-        Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserDto updateDto); 
-        Task<bool> LogoutAsync(HttpContext httpContext);
+        Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserDto updateDto);
         Task<UserResponseDto> GetCurrentUserAsync(HttpContext httpContext);
 
-       
-        Task<List<UserResponseDto>> GetAllVendorsAsync(bool? isActive = null);
-        Task<bool> DeleteVendorAsync(int userId); 
-        Task<bool> RestoreVendorAsync(int userId);
+        Task<string> LoginAsync(LoginDto loginDto, HttpContext httpContext);
+        Task<bool> LogoutAsync(HttpContext httpContext);
+
+        
+        Task<VendorResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto);
+
+        Task<List<VendorResponseDto>> GetAllVendorsAsync(bool? isActive = null, bool? isApproved = null);
+        Task<VendorResponseDto> GetVendorByIdAsync(int vendorId);
+        Task<VendorResponseDto> UpdateVendorAsync(int vendorId, UpdateVendorDto updateDto);
+        Task<bool> DeleteVendorAsync(int vendorId);
+        Task<bool> RestoreVendorAsync(int vendorId);
+        Task<bool> ApproveVendorAsync(int vendorId, int approvedByUserId);
+        Task<bool> RejectVendorAsync(int vendorId, int rejectedByUserId);
+
+        // Vendor documents
+        Task<List<VendorDocumentDto>> GetVendorDocumentsAsync(int vendorId);
+        Task<VendorDocumentDto> AddVendorDocumentAsync(int vendorId, AddVendorDocumentDto addDocumentDto);
+        Task<bool> DeleteVendorDocumentAsync(int documentId);
     }
 }
