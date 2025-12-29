@@ -827,7 +827,7 @@ namespace AlphaLogistics.API.Services
             {
                 // Extract filename from URL
                 var fileName = Path.GetFileName(fileUrl);
-
+                var currDirectory = Directory.GetCurrentDirectory();
                 // Determine folder based on URL pattern
                 string folder = "uploads";
                 if (fileUrl.Contains("/profiles/"))
@@ -837,7 +837,7 @@ namespace AlphaLogistics.API.Services
                 else if (fileUrl.Contains("/products/"))
                     folder = "uploads/products";
 
-                var filePath = Path.Combine(_environment.WebRootPath, folder, fileName);
+                var filePath = Path.Combine(currDirectory, folder, fileName);
 
                 if (File.Exists(filePath))
                 {
