@@ -13,6 +13,7 @@ namespace AlphaLogistics.API.Model
         public virtual DbSet<OrderItems> OrderItems { get; set; }
         public virtual DbSet<UserMaster> UserMasters { get; set; }
         public virtual DbSet<RoleMaster> RoleMasters { get; set; }
+        public virtual DbSet<DocumentMaster> DocumentMasters { get; set; }
         public virtual DbSet<ProductImages> ProductImages { get; set; }
         public virtual DbSet<VendorMaster> VendorMasters { get; set; }
         public virtual DbSet<CategoryMaster> CategoryMasters { get; set; }
@@ -36,17 +37,75 @@ namespace AlphaLogistics.API.Model
 
             // Configure relationships
             modelBuilder.Entity<UserMaster>()
-           .HasOne(u => u.VendorMaster) // This navigation property doesn't exist yet!
-           .WithOne(v => v.UserMaster)
-           .HasForeignKey<VendorMaster>(v => v.UserId)
-           .OnDelete(DeleteBehavior.Cascade);
+         .HasOne(u => u.RoleMaster)
+         .WithMany()
+         .HasForeignKey(u => u.RoleId)
+         .OnDelete(DeleteBehavior.Restrict);
 
+            // UserMaster -> VendorMaster relationship (One-to-One)
             modelBuilder.Entity<UserMaster>()
-                .HasOne(u => u.RoleMaster)
+                .HasOne(u => u.VendorMaster)
+                .WithOne(v => v.UserMaster)
+                .HasForeignKey<VendorMaster>(v => v.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // VendorMaster -> ProductMaster relationship (One-to-Many)
+            modelBuilder.Entity<VendorMaster>()
+                .HasMany(v => v.ProductMasters)
+                .WithOne(p => p.VendorMaster)
+                .HasForeignKey(p => p.VendorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // VendorMaster -> DocumentMaster relationship (One-to-Many)
+            modelBuilder.Entity<VendorMaster>()
+                .HasMany(v => v.Documents)
+                .WithOne(d => d.VendorMaster)
+                .HasForeignKey(d => d.VendorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ProductMaster -> ProductImages relationship (One-to-Many)
+            modelBuilder.Entity<ProductMaster>()
+                .HasMany(p => p.ProductImages)
+                .WithOne(pi => pi.ProductMaster)
+                .HasForeignKey(pi => pi.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ProductMaster -> SubCategoryMaster relationship
+            modelBuilder.Entity<ProductMaster>()
+                .HasOne(p => p.SubCategoryMaster)
                 .WithMany()
-                .HasForeignKey(u => u.RoleId)
+                .HasForeignKey(p => p.SubCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // ProductMaster -> CartMaster relationship (One-to-Many)
+            modelBuilder.Entity<ProductMaster>()
+                .HasMany(p => p.CartMasters)
+                .WithOne(c => c.ProductMaster)
+                .HasForeignKey(c => c.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // CartMaster -> UserMaster relationship
+            modelBuilder.Entity<CartMaster>()
+                .HasOne(c => c.UserMaster)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // CategoryMaster -> SubCategoryMaster relationship (One-to-Many)
+            modelBuilder.Entity<CategoryMaster>()
+                .HasMany(c => c.SubCategoryMasters)
+                .WithOne(sc => sc.CategoryMaster)
+                .HasForeignKey(sc => sc.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // SubCategoryMaster -> CategoryMaster relationship
+            modelBuilder.Entity<SubCategoryMaster>()
+                .HasOne(sc => sc.CategoryMaster)
+                .WithMany(c => c.SubCategoryMasters)
+                .HasForeignKey(sc => sc.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Add unique constraints
             modelBuilder.Entity<UserMaster>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
@@ -56,40 +115,62 @@ namespace AlphaLogistics.API.Model
                 .IsUnique();
 
             modelBuilder.Entity<VendorMaster>()
-                .HasIndex(v => v.Email)
+                .HasIndex(v => v.PAN)
                 .IsUnique();
 
             modelBuilder.Entity<VendorMaster>()
-                .HasIndex(v => v.Phone)
+                .HasIndex(v => v.UserId)
+                .IsUnique(); // One user can have only one vendor profile
+
+            // Prevent duplicate cart items for same user and product
+            modelBuilder.Entity<CartMaster>()
+                .HasIndex(c => new { c.UserId, c.ProductId })
                 .IsUnique();
 
+            // Optional: Set default values
+            modelBuilder.Entity<UserMaster>()
+                .Property(u => u.IsActive)
+                .HasDefaultValue(true);
 
-            //Product relationship Mapping
+            modelBuilder.Entity<VendorMaster>()
+                .Property(v => v.IsActive)
+                .HasDefaultValue(true);
+
+            modelBuilder.Entity<VendorMaster>()
+                .Property(v => v.IsApproved)
+                .HasDefaultValue(false);
+
+            modelBuilder.Entity<VendorMaster>()
+                .Property(v => v.CustomerType)
+                .HasDefaultValue("Basic");
+
             modelBuilder.Entity<ProductMaster>()
-               .HasOne(p => p.VendorMaster)
-               .WithMany(v => v.ProductMasters)
-               .HasForeignKey(p => p.VendorId)
-               .OnDelete(DeleteBehavior.Cascade);
+                .Property(p => p.IsActive)
+                .HasDefaultValue(true);
+
+            //TimeStamp for Entities
+            modelBuilder.Entity<CartMaster>()
+                .Property(c => c.CreatedAt)
+                .HasDefaultValueSql("NOW()");
+            modelBuilder.Entity<CartMaster>()
+                .Property(c => c.CreatedAt)
+                .HasDefaultValueSql("NOW()");
+
+            modelBuilder.Entity<UserMaster>()
+                .Property(u => u.CreatedAt)
+                .HasDefaultValueSql("NOW()");
+
+            modelBuilder.Entity<VendorMaster>()
+                .Property(v => v.CreatedAt)
+                .HasDefaultValueSql("NOW()");
 
             modelBuilder.Entity<ProductMaster>()
-                .HasOne(p => p.SubCategoryMaster)
-                .WithMany()
-                .HasForeignKey(p => p.SubCategoryId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .Property(p => p.CreatedAt)
+                .HasDefaultValueSql("NOW()");
 
-            // Configure ProductImages relationship
-            modelBuilder.Entity<ProductImages>()
-                .HasOne(pi => pi.ProductMaster)
-                .WithMany()
-                .HasForeignKey(pi => pi.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Configure Category-SubCategory relationship
-            modelBuilder.Entity<CategoryMaster>()
-                .HasMany(c => c.SubCategoryMasters)
-                .WithOne(sc => sc.CategoryMaster)
-                .HasForeignKey(sc => sc.CategoryId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<DocumentMaster>()
+                .Property(d => d.UploadedAt)
+                .HasDefaultValueSql("NOW()");
         }
     }
 }

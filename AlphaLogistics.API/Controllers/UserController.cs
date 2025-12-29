@@ -24,7 +24,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // POST: api/User/Register
-        [HttpPost("register")]
+        [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> Register([FromForm] RegisterUserDto registerDto)
         {
@@ -40,24 +40,9 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpPost("register-vendor")]
-        [AllowAnonymous]
-        public async Task<IActionResult> RegisterVendor([FromForm] RegisterVendorDto registerDto)
-        {
-            try
-            {
-                var result = await _userService.RegisterVendorAsync(registerDto);
-                return CreatedResponse(result, "Vendor registered successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error registering vendor");
-                return ConflictResponse<string>(ex.Message);
-            }
-        }
 
         // POST: api/User/Login
-        [HttpPost("login")]
+        [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
         {
@@ -89,7 +74,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpGet("all")]
+        [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetAllUsers([FromQuery] int? roleId = null)
         {
@@ -121,7 +106,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpPost("logout")]
+        [HttpPost]
         [Authorize]
         public async Task<IActionResult> Logout()
         {
@@ -137,7 +122,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpGet("current-user")]
+        [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetCurrentUser()
         {
@@ -153,13 +138,47 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpGet("vendors")]
-        [Authorize(Policy = "Admin")]
-        public async Task<IActionResult> GetAllVendors([FromQuery] bool? isActive = null)
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> RegisterVendor([FromForm] RegisterVendorDto registerDto)
         {
             try
             {
-                var vendors = await _userService.GetAllVendorsAsync(isActive);
+                var result = await _userService.RegisterVendorAsync(registerDto);
+                return CreatedResponse(result, "Vendor registration submitted. Waiting for admin approval.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error registering vendor");
+                return ConflictResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpPut("{vendorId}")]
+        [Authorize]
+        public async Task<IActionResult> UpdateVendor(int vendorId, [FromForm] UpdateVendorDto updateDto)
+        {
+            try
+            {
+                var vendor = await _userService.UpdateVendorAsync(vendorId, updateDto);
+                return SuccessResponse(vendor, "Vendor updated successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating vendor {vendorId}");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpGet]
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> GetAllVendors(
+        [FromQuery] bool? isActive = null,
+        [FromQuery] bool? isApproved = null)
+        {
+            try
+            {
+                var vendors = await _userService.GetAllVendorsAsync(isActive, isApproved);
                 return SuccessResponse(vendors);
             }
             catch (Exception ex)
@@ -169,38 +188,72 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpDelete("delete-vendor/{userId}")]
-        [Authorize(Policy = "Admin")]
-        public async Task<IActionResult> DeleteVendor(int userId)
+        [HttpGet("{vendorId}")]
+        [Authorize]
+        public async Task<IActionResult> GetVendorById(int vendorId)
         {
             try
             {
-                await _userService.DeleteVendorAsync(userId);
+                var vendor = await _userService.GetVendorByIdAsync(vendorId);
+                return SuccessResponse(vendor);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting vendor {vendorId}");
+                return NoContentResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpDelete("{vendorId}")]
+        [Authorize(Policy = "Admin")]
+        public async Task<IActionResult> DeleteVendor(int vendorId)
+        {
+            try
+            {
+                await _userService.DeleteVendorAsync(vendorId);
                 return SuccessResponse<string>("", "Vendor deleted successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error deleting vendor with user id {userId}");
+                _logger.LogError(ex, $"Error deleting vendor {vendorId}");
                 return ErrorResponse<string>(ex.Message);
             }
         }
 
-        [HttpPost("restore-vendor/{userId}")]
+        [HttpPost("{vendorId}/restore")]
         [Authorize(Policy = "Admin")]
-        public async Task<IActionResult> RestoreVendor(int userId)
+        public async Task<IActionResult> RestoreVendor(int vendorId)
         {
             try
             {
-                await _userService.RestoreVendorAsync(userId);
+                await _userService.RestoreVendorAsync(vendorId);
                 return SuccessResponse<string>("", "Vendor restored successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error restoring vendor with user id {userId}");
+                _logger.LogError(ex, $"Error restoring vendor {vendorId}");
                 return ErrorResponse<string>(ex.Message);
             }
         }
 
+
+        [HttpGet("{vendorId}/documents")]
+        [Authorize]
+        public async Task<IActionResult> GetVendorDocuments(int vendorId)
+        {
+            try
+            {
+                var documents = await _userService.GetVendorDocumentsAsync(vendorId);
+                return SuccessResponse(documents);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting documents for vendor {vendorId}");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        /*
         [HttpPut("update-profile")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromForm] UpdateUserDto updateDto)
@@ -217,5 +270,6 @@ namespace AlphaLogistics.API.Controllers
                 return ErrorResponse<string>(ex.Message);
             }
         }
+        */
     }
 }

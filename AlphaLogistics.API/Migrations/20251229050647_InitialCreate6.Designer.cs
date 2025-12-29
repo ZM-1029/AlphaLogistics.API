@@ -3,6 +3,7 @@ using System;
 using AlphaLogistics.API.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AlphaLogistics.API.Migrations
 {
     [DbContext(typeof(AlphaLogisticsContext))]
-    partial class AlphaLogisticsContextModelSnapshot : ModelSnapshot
+    [Migration("20251229050647_InitialCreate6")]
+    partial class InitialCreate6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -31,9 +34,7 @@ namespace AlphaLogistics.API.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW()");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
@@ -76,37 +77,6 @@ namespace AlphaLogistics.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("CategoryMasters");
-                });
-
-            modelBuilder.Entity("AlphaLogistics.API.Model.DocumentMaster", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("DocumentName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DocumentUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW()");
-
-                    b.Property<int>("VendorId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VendorId");
-
-                    b.ToTable("DocumentMasters");
                 });
 
             modelBuilder.Entity("AlphaLogistics.API.Model.OrderItems", b =>
@@ -185,9 +155,14 @@ namespace AlphaLogistics.API.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("ProductMasterId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("ProductMasterId");
 
                     b.ToTable("ProductImages");
                 });
@@ -201,18 +176,14 @@ namespace AlphaLogistics.API.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW()");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastUpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -301,17 +272,13 @@ namespace AlphaLogistics.API.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW()");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastUpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -360,15 +327,7 @@ namespace AlphaLogistics.API.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AccHolderName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("BankAccountNo")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("BankName")
+                    b.Property<string>("Address")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -377,56 +336,38 @@ namespace AlphaLogistics.API.Migrations
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("NOW()");
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("CustomerType")
+                    b.Property<string>("Email")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Basic");
-
-                    b.Property<string>("Description")
                         .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("IsApproved")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastUpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("PAN")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PrimaryAddress")
+                    b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("SecondaryAddress")
+                    b.Property<string>("ProfileImage")
                         .HasColumnType("text");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("VAT")
-                        .HasColumnType("text");
-
-                    b.Property<string>("VendorName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("PAN")
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("Phone")
                         .IsUnique();
 
                     b.HasIndex("UserId")
@@ -452,17 +393,6 @@ namespace AlphaLogistics.API.Migrations
                     b.Navigation("ProductMaster");
 
                     b.Navigation("UserMaster");
-                });
-
-            modelBuilder.Entity("AlphaLogistics.API.Model.DocumentMaster", b =>
-                {
-                    b.HasOne("AlphaLogistics.API.Model.VendorMaster", "VendorMaster")
-                        .WithMany("Documents")
-                        .HasForeignKey("VendorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("VendorMaster");
                 });
 
             modelBuilder.Entity("AlphaLogistics.API.Model.OrderItems", b =>
@@ -498,10 +428,14 @@ namespace AlphaLogistics.API.Migrations
             modelBuilder.Entity("AlphaLogistics.API.Model.ProductImages", b =>
                 {
                     b.HasOne("AlphaLogistics.API.Model.ProductMaster", "ProductMaster")
-                        .WithMany("ProductImages")
+                        .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("AlphaLogistics.API.Model.ProductMaster", null)
+                        .WithMany("ProductImages")
+                        .HasForeignKey("ProductMasterId");
 
                     b.Navigation("ProductMaster");
                 });
@@ -591,8 +525,6 @@ namespace AlphaLogistics.API.Migrations
 
             modelBuilder.Entity("AlphaLogistics.API.Model.VendorMaster", b =>
                 {
-                    b.Navigation("Documents");
-
                     b.Navigation("ProductMasters");
                 });
 #pragma warning restore 612, 618
