@@ -20,6 +20,7 @@ namespace AlphaLogistics.API.Model
         public bool IsActive { get; set; } = true;
         public ICollection<CartMaster>? CartMasters { get; set; }
         public VendorMaster? VendorMaster { get; set; }
+        public ICollection<ProductImages>? ProductImages { get; set; }
         public SubCategoryMaster? SubCategoryMaster { get; set; }
 
     }

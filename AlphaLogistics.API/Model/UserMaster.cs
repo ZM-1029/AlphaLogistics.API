@@ -20,5 +20,7 @@ namespace AlphaLogistics.API.Model
         public bool IsActive { get; set; }=true;
         public RoleMaster? RoleMaster { get; set; }
 
+        public VendorMaster? VendorMaster { get; set; }
+
     }
 }
