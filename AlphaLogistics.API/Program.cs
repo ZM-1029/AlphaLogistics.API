@@ -4,6 +4,7 @@ using AlphaLogistics.API.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -45,7 +46,7 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-builder.Services.AddOpenApi();
+// builder.Services.AddOpenApi(); // Remove or comment out this line
 
 // Cookie Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -95,11 +96,6 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

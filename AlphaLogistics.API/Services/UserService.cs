@@ -28,9 +28,7 @@ namespace AlphaLogistics.API.Services
             using var sha256 = SHA256.Create();
             var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
             return Convert.ToBase64String(hashedBytes);
-        }
-
-        
+        }     
         private async Task<string?> UploadProfileImage(IFormFile? profileImage)
         {
             if (profileImage == null || profileImage.Length == 0)
@@ -50,7 +48,6 @@ namespace AlphaLogistics.API.Services
 
             return $"/uploads/profiles/{uniqueFileName}";
         }
-
         
         private UserResponseDto ConvertToUserResponseDto(UserMaster user)
         {
@@ -650,7 +647,7 @@ namespace AlphaLogistics.API.Services
             return await GetUserByIdAsync(userId);
         }
 
-        public async Task<List<UserResponseDto>> GetAllVendorsAsync(bool? isActive = null)
+        /*        public async Task<List<UserResponseDto>> GetAllVendorsAsync(bool? isActive = null)
         {
             var query = _context.UserMasters
                 .Include(u => u.RoleMaster)
@@ -669,7 +666,7 @@ namespace AlphaLogistics.API.Services
 
             return vendors.Select(ConvertToUserResponseDto).ToList();
         }
-
+*/
         public async Task<bool> DeleteVendorAsync(int vendorId)
         {
             var vendor = await _context.VendorMasters
