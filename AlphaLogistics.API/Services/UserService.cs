@@ -873,8 +873,8 @@ namespace AlphaLogistics.API.Services
         {
             if (file == null || file.Length == 0)
                 return null;
-
-            var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", folder);
+            var currDirectory = Directory.GetCurrentDirectory();
+            var uploadsFolder = Path.Combine(currDirectory, "uploads", folder);
             if (!Directory.Exists(uploadsFolder))
                 Directory.CreateDirectory(uploadsFolder);
 
