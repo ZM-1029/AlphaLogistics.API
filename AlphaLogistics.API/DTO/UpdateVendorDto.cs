@@ -13,14 +13,13 @@
         public string? SecondaryAddress { get; set; }
         public string? Description { get; set; }
         public string? CustomerType { get; set; }
+        public bool IsApproved { get; set; } = false;
         public bool? IsActive { get; set; }
+        public int? UpdatedBy { get; set; } = null;
 
         public IFormFile? ProfileImage { get; set; }
-        public IFormFile? PANDocument { get; set; }
-        public IFormFile? VATDocument { get; set; }
-        public IFormFile? BankDocument { get; set; }
-        public IFormFile? BusinessLicense { get; set; }
-        public IFormFile? OtherDocument { get; set; }
+
+        public List<IFormFile>? DocumentsToAdd { get; set; }
 
         public List<int>? DocumentsToDelete { get; set; }
     }

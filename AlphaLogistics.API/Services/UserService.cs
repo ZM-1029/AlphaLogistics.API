@@ -74,7 +74,7 @@ namespace AlphaLogistics.API.Services
                 throw new Exception("Email already exists");
 
             var role = await _context.RoleMasters
-                .FirstOrDefaultAsync(r => r.Id == registerDto.RoleId && r.IsActive);
+                .FirstOrDefaultAsync(r => r.Id == 5 && r.IsActive);
             if (role == null)
                 throw new Exception("Invalid role");
 
@@ -91,7 +91,7 @@ namespace AlphaLogistics.API.Services
                 Password = HashPassword(registerDto.Password),
                 Phone = registerDto.Phone,
                 Address = registerDto.Address,
-                RoleId = registerDto.RoleId,
+                RoleId = 5,
                 ProfileImage = profileImageUrl,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true,
@@ -104,34 +104,62 @@ namespace AlphaLogistics.API.Services
             return ConvertToUserResponseDto(user);
         }
 
-        public async Task<VendorResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto)
+        public async Task<VendorResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto, HttpContext httpContext)
         {
-            // Validate terms acceptance
+            
             if (!registerDto.AcceptTerms)
                 throw new Exception("You must accept terms and conditions");
 
-            // Check if email already exists
             if (await _context.UserMasters.AnyAsync(u => u.Email == registerDto.Email))
                 throw new Exception("Email already registered");
 
-            // Check if PAN already exists
             if (await _context.VendorMasters.AnyAsync(v => v.PAN == registerDto.PAN))
                 throw new Exception("PAN number already registered");
 
-            // Get vendor role
             var vendorRole = await _context.RoleMasters
                 .FirstOrDefaultAsync(r => r.Name == "Vendor" && r.IsActive);
 
             if (vendorRole == null)
                 throw new Exception("Vendor role not found");
 
-            // Upload profile image if provided
+           
+            int? createdByUserId = null;
+            bool isAdminOrSuperAdmin = false;
+
+            try
+            {
+                var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int currentUserId))
+                {
+                   
+                    var currentUser = await _context.UserMasters
+                        .Include(u => u.RoleMaster)
+                        .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+                    if (currentUser != null && currentUser.RoleMaster != null)
+                    {
+                        var roleName = currentUser.RoleMaster.Name;
+                        if (roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                            roleName.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            createdByUserId = currentUserId;
+                            isAdminOrSuperAdmin = true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking user role: {ex.Message}");
+            }
+
             string? profileImageUrl = null;
             if (registerDto.ProfileImage != null)
             {
                 profileImageUrl = await UploadProfileImage(registerDto.ProfileImage);
             }
 
+            // Create user account
             var user = new UserMaster
             {
                 UserName = registerDto.VendorName,
@@ -145,82 +173,79 @@ namespace AlphaLogistics.API.Services
                 IsActive = true
             };
 
-            _context.UserMasters.Add(user);
-            await _context.SaveChangesAsync(); 
+            try
+            {
+                _context.UserMasters.Add(user);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException dbEx)
+            {
 
+                if (dbEx.InnerException != null)
+                {
+                    throw new Exception($"{dbEx.InnerException}");
+                }
+            }
 
+            // Create vendor
             var vendor = new VendorMaster
             {
-                UserId = user.Id, 
+                UserId = user.Id,
+                CreatedBy = createdByUserId, 
+                UpdatedBy = createdByUserId, 
                 VendorName = registerDto.VendorName,
                 ContactPerson = registerDto.ContactPerson,
-
-                // Legal details
                 PAN = registerDto.PAN,
                 VAT = registerDto.VAT,
-
-
                 BankAccountNo = registerDto.BankAccountNo,
                 BankName = registerDto.BankName,
                 AccHolderName = registerDto.AccHolderName,
-
                 PrimaryAddress = registerDto.PrimaryAddress,
                 SecondaryAddress = registerDto.SecondaryAddress,
-
                 Description = registerDto.Description,
-
-                IsApproved = false, // Needs admin approval
+                IsApproved = isAdminOrSuperAdmin, 
                 CustomerType = registerDto.CustomerType,
-
-
                 CreatedAt = DateTime.UtcNow,
-                IsActive = false 
+                LastUpdatedAt = DateTime.UtcNow,
+                IsActive = isAdminOrSuperAdmin 
             };
 
-            _context.VendorMasters.Add(vendor);
-            await _context.SaveChangesAsync();
-
-
-            var documents = new List<DocumentMaster>();
-
-
-            var panDocument = await UploadDocument(registerDto.PANDocument, vendor.Id, "PAN_Certificate");
-            if (panDocument != null) documents.Add(panDocument);
-
-            if (registerDto.VATDocument != null)
+            try
             {
-                var vatDocument = await UploadDocument(registerDto.VATDocument, vendor.Id, "VAT_Certificate");
-                if (vatDocument != null) documents.Add(vatDocument);
-            }
-
-            // Upload Bank document
-            if (registerDto.BankDocument != null)
-            {
-                var bankDocument = await UploadDocument(registerDto.BankDocument, vendor.Id, "Bank_Proof");
-                if (bankDocument != null) documents.Add(bankDocument);
-            }
-
-
-            if (registerDto.BusinessLicense != null)
-            {
-                var licenseDocument = await UploadDocument(registerDto.BusinessLicense, vendor.Id, "Business_License");
-                if (licenseDocument != null) documents.Add(licenseDocument);
-            }
-
-
-            if (registerDto.OtherDocument != null)
-            {
-                var otherDocument = await UploadDocument(registerDto.OtherDocument, vendor.Id, "Other_Document");
-                if (otherDocument != null) documents.Add(otherDocument);
-            }
-
-
-            if (documents.Any())
-            {
-                _context.DocumentMasters.AddRange(documents);
+                _context.VendorMasters.Add(vendor);
                 await _context.SaveChangesAsync();
             }
+            catch (DbUpdateException dbEx)
+            {
 
+                if (dbEx.InnerException != null)
+                {
+                    throw new Exception($"{dbEx.InnerException}");
+                }
+            }
+                var documents = new List<DocumentMaster>();
+            if (registerDto.Documents != null && registerDto.Documents.Any())
+            {
+                foreach (var documentFile in registerDto.Documents)
+                {
+                    var document = await UploadDocument(
+                        documentFile,
+                        vendor.Id,
+                        documentFile.FileName
+                    );
+
+                    if (document != null)
+                        documents.Add(document);
+                }
+
+                if (documents.Any())
+                {
+                    _context.DocumentMasters.AddRange(documents);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            // Prepare response
             var vendorDocuments = documents.Select(d => new VendorDocumentDto
             {
                 DocumentId = d.Id,
@@ -233,39 +258,23 @@ namespace AlphaLogistics.API.Services
             {
                 VendorId = vendor.Id,
                 UserId = user.Id,
-
-                
                 VendorName = vendor.VendorName,
                 ContactPerson = vendor.ContactPerson,
-
-                // Legal details
                 PAN = vendor.PAN,
                 VAT = vendor.VAT,
-
-                
                 BankAccountNo = vendor.BankAccountNo,
                 BankName = vendor.BankName,
                 AccHolderName = vendor.AccHolderName,
-
-                
                 PrimaryAddress = vendor.PrimaryAddress,
                 SecondaryAddress = vendor.SecondaryAddress,
-
-                
                 Description = vendor.Description,
-
-                
                 IsApproved = vendor.IsApproved,
                 CustomerType = vendor.CustomerType,
-
-              
+                CreatedBy = vendor.CreatedBy,
+                UpdatedBy = vendor.UpdatedBy,
                 Documents = vendorDocuments,
-
-               
                 CreatedAt = vendor.CreatedAt,
                 IsActive = vendor.IsActive,
-
-                
                 UserName = user.UserName,
                 Email = user.Email,
                 Phone = user.Phone,
@@ -390,18 +399,46 @@ namespace AlphaLogistics.API.Services
             };
         }
 
-        public async Task<VendorResponseDto> UpdateVendorAsync(int vendorId, UpdateVendorDto updateDto)
+        public async Task<VendorResponseDto> UpdateVendorAsync(int vendorId, UpdateVendorDto updateDto, HttpContext httpContext)
         {
             var vendor = await _context.VendorMasters
                 .Include(v => v.UserMaster)
-                    .ThenInclude(u => u.RoleMaster)
                 .Include(v => v.Documents)
                 .FirstOrDefaultAsync(v => v.Id == vendorId);
 
             if (vendor == null)
                 throw new Exception("Vendor not found");
 
-            // Update vendor details if provided
+            int? updatedByUserId = null;
+            bool isAdminOrSuperAdmin = false;
+
+            try
+            {
+                var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int currentUserId))
+                {
+                    var currentUser = await _context.UserMasters
+                        .Include(u => u.RoleMaster)
+                        .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+                    if (currentUser != null && currentUser.RoleMaster != null)
+                    {
+                        var roleName = currentUser.RoleMaster.Name;
+                        if (roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                            roleName.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            updatedByUserId = currentUserId;
+                            isAdminOrSuperAdmin = true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking user role: {ex.Message}");
+            }
+
+            // Update vendor details
             if (!string.IsNullOrEmpty(updateDto.VendorName))
                 vendor.VendorName = updateDto.VendorName;
 
@@ -438,54 +475,56 @@ namespace AlphaLogistics.API.Services
             if (updateDto.IsActive.HasValue)
                 vendor.IsActive = updateDto.IsActive.Value;
 
+            
+            if (updateDto.IsApproved)
+            {
+                if (isAdminOrSuperAdmin)
+                {
+                    vendor.IsApproved = updateDto.IsApproved;
+
+                    
+                    if (vendor.IsApproved && !vendor.IsActive)
+                        vendor.IsActive = true;
+                }
+                else
+                {
+                    throw new UnauthorizedAccessException("Only Admin or SuperAdmin can update approval status");
+                }
+            }
+
             vendor.LastUpdatedAt = DateTime.UtcNow;
 
-            // Handle profile image update (updates UserMaster)
+            // Set UpdatedBy only if Admin/SuperAdmin is updating
+            if (isAdminOrSuperAdmin)
+                vendor.UpdatedBy = updatedByUserId;
+
             if (updateDto.ProfileImage != null)
             {
                 vendor.UserMaster.ProfileImage = await UploadProfileImage(updateDto.ProfileImage);
             }
 
-            // Handle document uploads
             var newDocuments = new List<DocumentMaster>();
 
-            if (updateDto.PANDocument != null)
+            if (updateDto.DocumentsToAdd != null && updateDto.DocumentsToAdd.Any())
             {
-                var panDoc = await UploadDocument(updateDto.PANDocument, vendor.Id, "PAN_Certificate");
-                if (panDoc != null) newDocuments.Add(panDoc);
+                foreach (var documentFile in updateDto.DocumentsToAdd)
+                {
+                    var document = await UploadDocument(
+                        documentFile,
+                        vendor.Id,
+                        documentFile.FileName
+                    );
+
+                    if (document != null)
+                        newDocuments.Add(document);
+                }
+
+                if (newDocuments.Any())
+                {
+                    _context.DocumentMasters.AddRange(newDocuments);
+                }
             }
 
-            if (updateDto.VATDocument != null)
-            {
-                var vatDoc = await UploadDocument(updateDto.VATDocument, vendor.Id, "VAT_Certificate");
-                if (vatDoc != null) newDocuments.Add(vatDoc);
-            }
-
-            if (updateDto.BankDocument != null)
-            {
-                var bankDoc = await UploadDocument(updateDto.BankDocument, vendor.Id, "Bank_Proof");
-                if (bankDoc != null) newDocuments.Add(bankDoc);
-            }
-
-            if (updateDto.BusinessLicense != null)
-            {
-                var licenseDoc = await UploadDocument(updateDto.BusinessLicense, vendor.Id, "Business_License");
-                if (licenseDoc != null) newDocuments.Add(licenseDoc);
-            }
-
-            if (updateDto.OtherDocument != null)
-            {
-                var otherDoc = await UploadDocument(updateDto.OtherDocument, vendor.Id, "Other_Document");
-                if (otherDoc != null) newDocuments.Add(otherDoc);
-            }
-
-            // Add new documents
-            if (newDocuments.Any())
-            {
-                _context.DocumentMasters.AddRange(newDocuments);
-            }
-
-            // Delete specified documents
             if (updateDto.DocumentsToDelete != null && updateDto.DocumentsToDelete.Any())
             {
                 var docsToDelete = await _context.DocumentMasters
@@ -762,7 +801,7 @@ namespace AlphaLogistics.API.Services
         // Add vendor document
         public async Task<VendorDocumentDto> AddVendorDocumentAsync(int vendorId, AddVendorDocumentDto addDocumentDto)
         {
-            // Check if vendor exists
+          
             var vendor = await _context.VendorMasters
                 .FirstOrDefaultAsync(v => v.Id == vendorId);
 
@@ -772,11 +811,14 @@ namespace AlphaLogistics.API.Services
             if (!vendor.IsActive || !vendor.IsApproved)
                 throw new Exception("Vendor is not active or approved");
 
-            // Upload document
+            var documentName = !string.IsNullOrEmpty(addDocumentDto.DocumentName)
+                ? addDocumentDto.DocumentName
+                : addDocumentDto.DocumentFile.FileName;
+
             var document = await UploadDocument(
                 addDocumentDto.DocumentFile,
                 vendorId,
-                addDocumentDto.DocumentName
+                documentName
             );
 
             if (document == null)
@@ -794,7 +836,6 @@ namespace AlphaLogistics.API.Services
             };
         }
 
-        // Delete vendor document
         public async Task<bool> DeleteVendorDocumentAsync(int documentId)
         {
             var document = await _context.DocumentMasters
@@ -817,7 +858,6 @@ namespace AlphaLogistics.API.Services
             return true;
         }
 
-        // Helper method to delete physical file
         private void DeleteFile(string fileUrl)
         {
             if (string.IsNullOrEmpty(fileUrl))
@@ -825,10 +865,10 @@ namespace AlphaLogistics.API.Services
 
             try
             {
-                // Extract filename from URL
+                
                 var fileName = Path.GetFileName(fileUrl);
                 var currDirectory = Directory.GetCurrentDirectory();
-                // Determine folder based on URL pattern
+                
                 string folder = "uploads";
                 if (fileUrl.Contains("/profiles/"))
                     folder = "uploads/profiles";
@@ -846,7 +886,6 @@ namespace AlphaLogistics.API.Services
             }
             catch (Exception ex)
             {
-                // Log error but don't throw - database record will still be deleted
                 Console.WriteLine($"Error deleting file: {ex.Message}");
             }
         }

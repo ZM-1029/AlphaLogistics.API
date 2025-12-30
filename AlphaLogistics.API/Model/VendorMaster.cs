@@ -38,10 +38,17 @@ namespace AlphaLogistics.API.Model
             public DateTime? LastUpdatedAt { get; set; }
             public bool IsActive { get; set; } = true;
 
-
+            public int? CreatedBy { get; set; }
+            public int? UpdatedBy { get; set; }
             public ICollection<ProductMaster>? ProductMasters { get; set; }
             public ICollection<DocumentMaster>? Documents { get; set; }
             public UserMaster UserMaster { get; set; }
-        }
+
+            [ForeignKey("CreatedBy")]
+            public UserMaster? CreatedByUser { get; set; }
+
+            [ForeignKey("UpdatedBy")]
+            public UserMaster? UpdatedByUser { get; set; }
+    }
  }
 

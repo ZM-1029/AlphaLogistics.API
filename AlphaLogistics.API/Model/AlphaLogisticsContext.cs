@@ -37,17 +37,31 @@ namespace AlphaLogistics.API.Model
 
             // Configure relationships
             modelBuilder.Entity<UserMaster>()
-         .HasOne(u => u.RoleMaster)
-         .WithMany()
-         .HasForeignKey(u => u.RoleId)
-         .OnDelete(DeleteBehavior.Restrict);
+             .HasOne(u => u.RoleMaster)
+             .WithMany()
+             .HasForeignKey(u => u.RoleId)
+             .OnDelete(DeleteBehavior.Restrict);
 
-            // UserMaster -> VendorMaster relationship (One-to-One)
             modelBuilder.Entity<UserMaster>()
-                .HasOne(u => u.VendorMaster)
-                .WithOne(v => v.UserMaster)
-                .HasForeignKey<VendorMaster>(v => v.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+             .HasOne(u => u.VendorMaster)
+             .WithOne(v => v.UserMaster)
+             .HasForeignKey<VendorMaster>(v => v.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<VendorMaster>()
+                .HasOne(v => v.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(v => v.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false); 
+
+          
+            modelBuilder.Entity<VendorMaster>()
+                .HasOne(v => v.UpdatedByUser)
+                .WithMany()
+                .HasForeignKey(v => v.UpdatedBy)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false); 
 
             // VendorMaster -> ProductMaster relationship (One-to-Many)
             modelBuilder.Entity<VendorMaster>()
@@ -62,6 +76,7 @@ namespace AlphaLogistics.API.Model
                 .WithOne(d => d.VendorMaster)
                 .HasForeignKey(d => d.VendorId)
                 .OnDelete(DeleteBehavior.Cascade);
+
 
             // ProductMaster -> ProductImages relationship (One-to-Many)
             modelBuilder.Entity<ProductMaster>()

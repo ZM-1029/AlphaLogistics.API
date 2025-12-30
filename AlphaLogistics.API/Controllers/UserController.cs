@@ -2,6 +2,7 @@
 using AlphaLogistics.API.Model;
 using AlphaLogistics.API.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -138,14 +139,19 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpPost]
-        [AllowAnonymous]
+        [HttpPost("register")]
         public async Task<IActionResult> RegisterVendor([FromForm] RegisterVendorDto registerDto)
         {
             try
             {
-                var result = await _userService.RegisterVendorAsync(registerDto);
-                return CreatedResponse(result, "Vendor registration submitted. Waiting for admin approval.");
+                
+                var result = await _userService.RegisterVendorAsync(registerDto, HttpContext);
+
+                string message = result.IsApproved
+                    ? "Vendor registered and approved successfully."
+                    : "Vendor registration submitted. Waiting for admin approval.";
+
+                return CreatedResponse(result, message);
             }
             catch (Exception ex)
             {
@@ -154,19 +160,24 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpPut("{vendorId}")]
+        [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateVendor(int vendorId, [FromForm] UpdateVendorDto updateDto)
+        public async Task<IActionResult> UpdateVendor(int id, [FromForm] UpdateVendorDto updateDto)
         {
             try
             {
-                var vendor = await _userService.UpdateVendorAsync(vendorId, updateDto);
-                return SuccessResponse(vendor, "Vendor updated successfully");
+                var result = await _userService.UpdateVendorAsync(id, updateDto, HttpContext);
+                return SuccessResponse(result, "Vendor updated successfully.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized attempt to update vendor");
+                return UnauthorizedResponse<string>(ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error updating vendor {vendorId}");
-                return ErrorResponse<string>(ex.Message);
+                _logger.LogError(ex, "Error updating vendor");
+                return ConflictResponse<string>(ex.Message);
             }
         }
 

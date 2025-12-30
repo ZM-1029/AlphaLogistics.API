@@ -40,6 +40,8 @@ namespace AlphaLogistics.API.DTO
         public string Address { get; set; }
         public string? ProfileImage { get; set; }
         public string Role { get; set; }
+        public int? CreatedBy { get; internal set; }
+        public int? UpdatedBy { get; internal set; }
     }
 
     public class VendorDocumentDto

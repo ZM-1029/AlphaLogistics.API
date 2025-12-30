@@ -1,4 +1,5 @@
 ﻿using AlphaLogistics.API.Model;
+using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
 namespace AlphaLogistics.API.DTO
@@ -21,8 +22,8 @@ namespace AlphaLogistics.API.DTO
 
         public string Address { get; set; }
 
-        [Required]
-        public int RoleId { get; set; }
+        //[Required]
+        //public int RoleId { get; set; } = 5;  // User Role
 
         public IFormFile? ProfileImage { get; set; }
     }
