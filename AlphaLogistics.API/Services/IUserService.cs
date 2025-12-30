@@ -17,14 +17,12 @@ namespace AlphaLogistics.API.Services
         
         Task<VendorResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto,HttpContext httpContext);
 
-        Task<List<VendorResponseDto>> GetAllVendorsAsync(bool? isActive = null, bool? isApproved = null);
+        Task<VendorListResponseDto> GetAllVendorsAsync(int pageNumber = 1,int pageSize = 10,bool? isActive = null,bool? isApproved = null,
+                                     string? customerType = null,string? vendorName = null, string? searchQuery = null);
         Task<VendorResponseDto> GetVendorByIdAsync(int vendorId);
         Task<VendorResponseDto> UpdateVendorAsync(int vendorId, UpdateVendorDto updateDto, HttpContext httpContext);
         Task<bool> DeleteVendorAsync(int vendorId);
         Task<bool> RestoreVendorAsync(int vendorId);
-        Task<bool> ApproveVendorAsync(int vendorId, int approvedByUserId);
-        Task<bool> RejectVendorAsync(int vendorId, int rejectedByUserId);
-
         // Vendor documents
         Task<List<VendorDocumentDto>> GetVendorDocumentsAsync(int vendorId);
         Task<VendorDocumentDto> AddVendorDocumentAsync(int vendorId, AddVendorDocumentDto addDocumentDto);

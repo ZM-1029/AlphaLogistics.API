@@ -61,21 +61,4 @@ namespace AlphaLogistics.API.DTO
         public IFormFile DocumentFile { get; set; }
     }
 
-    public class ApproveVendorDto
-    {
-        [Required]
-        public int VendorId { get; set; }
-
-        public string? ApprovalNotes { get; set; }
-        public string? CustomerType { get; set; }
-    }
-
-    public class RejectVendorDto
-    {
-        [Required]
-        public int VendorId { get; set; }
-
-        [Required]
-        public string RejectionReason { get; set; }
-    }
 }

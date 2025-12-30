@@ -584,6 +584,8 @@ namespace AlphaLogistics.API.Services
                 Description = vendor.Description,
                 IsApproved = vendor.IsApproved,
                 CustomerType = vendor.CustomerType,
+                CreatedBy = vendor.CreatedBy,
+                UpdatedBy = vendor.UpdatedBy,
              
                 // Timestamps
                 CreatedAt = vendor.CreatedAt,
@@ -608,14 +610,21 @@ namespace AlphaLogistics.API.Services
             };
         }
 
-        public async Task<List<VendorResponseDto>> GetAllVendorsAsync(bool? isActive = null, bool? isApproved = null)
+        public async Task<VendorListResponseDto> GetAllVendorsAsync(int pageNumber = 1,int pageSize = 10,bool? isActive = null,
+            bool? isApproved = null,string? customerType = null,string? vendorName = null,string? searchQuery = null)
         {
+            pageNumber = pageNumber < 1 ? 1 : pageNumber;
+            pageSize = pageSize < 1 ? 10 : (pageSize > 100 ? 100 : pageSize);
+
             var query = _context.VendorMasters
                 .Include(v => v.UserMaster)
                     .ThenInclude(u => u.RoleMaster)
                 .Include(v => v.Documents)
+                .Include(v => v.CreatedByUser) 
+                .Include(v => v.UpdatedByUser)
                 .AsQueryable();
 
+          
             if (isActive.HasValue)
             {
                 query = query.Where(v => v.IsActive == isActive.Value);
@@ -626,16 +635,41 @@ namespace AlphaLogistics.API.Services
                 query = query.Where(v => v.IsApproved == isApproved.Value);
             }
 
+            if (!string.IsNullOrWhiteSpace(customerType))
+            {
+                query = query.Where(v => v.CustomerType == customerType);
+            }
+
+            if (!string.IsNullOrWhiteSpace(vendorName))
+            {
+                query = query.Where(v => v.VendorName.Contains(vendorName));
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                searchQuery = searchQuery.ToLower();
+                query = query.Where(v =>
+                    v.VendorName.ToLower().Contains(searchQuery) ||
+                    v.ContactPerson.ToLower().Contains(searchQuery) ||
+                    v.PAN.ToLower().Contains(searchQuery) ||
+                    v.UserMaster.Email.ToLower().Contains(searchQuery) ||
+                    v.UserMaster.Phone.Contains(searchQuery));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
             var vendors = await query
                 .OrderByDescending(v => v.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return vendors.Select(v => new VendorResponseDto
+            var vendorDtos = vendors.Select(v => new VendorResponseDto
             {
                 VendorId = v.Id,
                 UserId = v.UserId,
-
-                // Vendor details
                 VendorName = v.VendorName,
                 ContactPerson = v.ContactPerson,
                 PAN = v.PAN,
@@ -648,11 +682,12 @@ namespace AlphaLogistics.API.Services
                 Description = v.Description,
                 IsApproved = v.IsApproved,
                 CustomerType = v.CustomerType,
-                // Timestamps
+                CreatedBy = v.CreatedBy,
+                UpdatedBy = v.UpdatedBy,
                 CreatedAt = v.CreatedAt,
                 IsActive = v.IsActive,
 
-                // User info
+         
                 UserName = v.UserMaster.UserName,
                 Email = v.UserMaster.Email,
                 Phone = v.UserMaster.Phone,
@@ -660,7 +695,7 @@ namespace AlphaLogistics.API.Services
                 ProfileImage = v.UserMaster.ProfileImage,
                 Role = v.UserMaster.RoleMaster?.Name ?? "Vendor",
 
-                // Documents
+               
                 Documents = v.Documents?.Select(d => new VendorDocumentDto
                 {
                     DocumentId = d.Id,
@@ -669,6 +704,18 @@ namespace AlphaLogistics.API.Services
                     UploadedAt = d.UploadedAt
                 }).ToList() ?? new List<VendorDocumentDto>()
             }).ToList();
+
+          
+            return new VendorListResponseDto
+            {
+                Vendors = vendorDtos,
+                CurrentPage = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages,
+                HasPrevious = pageNumber > 1,
+                HasNext = pageNumber < totalPages
+            };
         }
 
         public async Task<bool> LogoutAsync(HttpContext httpContext)
@@ -745,59 +792,7 @@ namespace AlphaLogistics.API.Services
             return true;
         }
 
-        public async Task<bool> ApproveVendorAsync(int vendorId, int approvedByUserId)
-        {
-            var vendor = await _context.VendorMasters
-                .Include(v => v.UserMaster)
-                .FirstOrDefaultAsync(v => v.Id == vendorId);
 
-            if (vendor == null)
-                throw new Exception("Vendor not found");
-
-            if (vendor.IsApproved)
-                throw new Exception("Vendor is already approved");
-
-            // Update vendor approval status
-            vendor.IsApproved = true;
-            vendor.IsActive = true;
-            vendor.LastUpdatedAt = DateTime.UtcNow;
-
-            // Also activate the user account if not already active
-            if (!vendor.UserMaster.IsActive)
-            {
-                vendor.UserMaster.IsActive = true;
-                vendor.UserMaster.LastUpdatedAt = DateTime.UtcNow;
-            }
-
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
-        // Reject vendor (without reason)
-        public async Task<bool> RejectVendorAsync(int vendorId, int rejectedByUserId)
-        {
-            var vendor = await _context.VendorMasters
-                .Include(v => v.UserMaster)
-                .FirstOrDefaultAsync(v => v.Id == vendorId);
-
-            if (vendor == null)
-                throw new Exception("Vendor not found");
-
-            if (vendor.IsApproved)
-                throw new Exception("Cannot reject an approved vendor");
-
-            // Update vendor - just mark as not approved
-            vendor.IsApproved = false;
-            vendor.IsActive = false;
-            vendor.LastUpdatedAt = DateTime.UtcNow;
-
-            // Deactivate the user account
-            vendor.UserMaster.IsActive = false;
-            vendor.UserMaster.LastUpdatedAt = DateTime.UtcNow;
-
-            await _context.SaveChangesAsync();
-            return true;
-        }
         // Add vendor document
         public async Task<VendorDocumentDto> AddVendorDocumentAsync(int vendorId, AddVendorDocumentDto addDocumentDto)
         {

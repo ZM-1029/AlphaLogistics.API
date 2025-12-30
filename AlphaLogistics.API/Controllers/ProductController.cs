@@ -7,7 +7,7 @@ using WALMS.API.Controllers;
 
 namespace AlphaLogistics.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[Action]")]
     [ApiController]
     [Authorize]
     public class ProductController : BaseController
@@ -21,19 +21,24 @@ namespace AlphaLogistics.API.Controllers
             _logger = logger;
         }
 
-        // POST: api/product/vendor/{vendorId}
-        [HttpPost("vendor/{vendorId}")]
-        public async Task<IActionResult> CreateProduct(int vendorId, [FromForm] CreateProductDto createDto)
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> CreateProduct(int VendorId,[FromForm] CreateProductDto createDto)
         {
             try
             {
-                var product = await _productService.CreateProductAsync(vendorId, createDto);
-                return CreatedResponse(product, "Product created successfully");
+                var result = await _productService.CreateProductAsync(VendorId, createDto, HttpContext);
+                return CreatedResponse(result, "Product created successfully");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized product creation attempt");
+                return UnauthorizedResponse<string>(ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error creating product for vendor {vendorId}");
-                return ErrorResponse<string>(ex.Message);
+                _logger.LogError(ex, "Error creating product");
+                return ConflictResponse<string>(ex.Message);
             }
         }
 
@@ -54,15 +59,35 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // GET: api/product
         [HttpGet]
         [AllowAnonymous]
-        public async Task<IActionResult> GetAllProducts([FromQuery] bool? isActive = null)
+        public async Task<IActionResult> GetAllProducts(
+             [FromQuery] int page = 1,
+             [FromQuery] int pageSize = 10,
+             [FromQuery] bool? isActive = null,
+             [FromQuery] int? categoryId = null,
+             [FromQuery] int? subCategoryId = null,
+             [FromQuery] string? search = null,
+             [FromQuery] decimal? minPrice = null,
+             [FromQuery] decimal? maxPrice = null,
+             [FromQuery] string? sortBy = "createdAt",
+             [FromQuery] string? sortOrder = "desc")
         {
             try
             {
-                var products = await _productService.GetAllProductsAsync(isActive);
-                return SuccessResponse(products);
+                var result = await _productService.GetAllProductsAsync(
+                    pageNumber: page,
+                    pageSize: pageSize,
+                    isActive: isActive,
+                    categoryId: categoryId,
+                    subCategoryId: subCategoryId,
+                    globalSearchQuery: search,
+                    minPrice: minPrice,
+                    maxPrice: maxPrice,
+                    sortBy: sortBy,
+                    sortOrder: sortOrder);
+
+                return SuccessResponse(result);
             }
             catch (Exception ex)
             {
@@ -72,7 +97,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // GET: api/product/vendor/{vendorId}
-        [HttpGet("vendor/{vendorId}")]
+        [HttpGet("{vendorId}")]
         public async Task<IActionResult> GetProductsByVendor(int vendorId, [FromQuery] bool? isActive = null)
         {
             try
@@ -88,7 +113,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // GET: api/product/category/{subCategoryId}
-        [HttpGet("category/{subCategoryId}")]
+        [HttpGet("{subCategoryId}")]
         [AllowAnonymous]
         public async Task<IActionResult> GetProductsBySubCategory(int subCategoryId, [FromQuery] bool? isActive = null)
         {
@@ -121,7 +146,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // PUT: api/product/vendor/{vendorId}/{productId}
-        [HttpPut("vendor/{vendorId}/{productId}")]
+        [HttpPut("{vendorId}/{productId}")]
         [Authorize(Roles = "Vendor")]
         public async Task<IActionResult> UpdateVendorProduct(int vendorId, int productId, [FromForm] UpdateProductDto updateDto)
         {
@@ -154,7 +179,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // DELETE: api/product/vendor/{vendorId}/{productId}
-        [HttpDelete("vendor/{vendorId}/{productId}")]
+        [HttpDelete("{vendorId}/{productId}")]
         [Authorize(Roles = "Vendor")]
         public async Task<IActionResult> DeleteVendorProduct(int vendorId, int productId)
         {
@@ -171,7 +196,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // POST: api/product/{id}/restore
-        [HttpPost("{id}/restore")]
+        [HttpPost("{id}")]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> RestoreProduct(int id)
         {
@@ -188,7 +213,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // DELETE: api/product/{id}/permanent
-        [HttpDelete("{id}/permanent")]
+        [HttpDelete("{id}")]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> DeleteProductPermanently(int id)
         {
@@ -204,25 +229,9 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // GET: api/product/search?term={searchTerm}
-        [HttpGet("search")]
-        [AllowAnonymous]
-        public async Task<IActionResult> SearchProducts([FromQuery] string term)
-        {
-            try
-            {
-                var products = await _productService.SearchProductsAsync(term);
-                return SuccessResponse(products);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error searching products with term {term}");
-                return ErrorResponse<string>(ex.Message);
-            }
-        }
 
         // GET: api/product/price-range?min={minPrice}&max={maxPrice}
-        [HttpGet("price-range")]
+        [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetProductsByPriceRange([FromQuery] decimal min, [FromQuery] decimal max)
         {
@@ -239,7 +248,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // Category Management Endpoints
-        [HttpPost("category")]
+        [HttpPost]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryDto createDto)
         {
@@ -255,7 +264,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpPost("subcategory")]
+        [HttpPost]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> CreateSubCategory([FromBody] CreateSubCategoryDto createDto)
         {
@@ -271,7 +280,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpGet("categories")]
+        [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAllCategories()
         {
@@ -287,7 +296,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpGet("subcategories")]
+        [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetAllSubCategories()
         {

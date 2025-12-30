@@ -1,6 +1,7 @@
 ﻿using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Model;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace AlphaLogistics.API.Services
 {
@@ -25,8 +26,8 @@ namespace AlphaLogistics.API.Services
 
             if (images == null || !images.Any())
                 return imageUrls;
-
-            var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "products");
+            var currDirectory = Directory.GetCurrentDirectory();
+            var uploadsFolder = Path.Combine(currDirectory, "uploads", "products");
             if (!Directory.Exists(uploadsFolder))
                 Directory.CreateDirectory(uploadsFolder);
 
@@ -64,86 +65,97 @@ namespace AlphaLogistics.API.Services
             }
         }
 
-        // Helper method to convert ProductMaster to ProductDto
-        private async Task<ProductDto> ConvertToProductDto(ProductMaster product)
-        {
-            var imageUrls = await _context.ProductImages
-                .Where(pi => pi.ProductId == product.Id)
-                .Select(pi => pi.ImageUrl)
-                .ToListAsync();
-
-            return new ProductDto
-            {
-                Id = product.Id,
-                ProductName = product.ProductName,
-                Description = product.Description,
-                Price = product.Price,
-                StockQuantity = product.StockQuantity,
-                IsActive = product.IsActive,
-                CreatedAt = product.CreatedAt,
-                LastUpdatedAt = product.LastUpdatedAt,
-                VendorId = product.VendorId,
-                VendorName = product.VendorMaster?.VendorName ?? string.Empty,
-                SubCategoryId = product.SubCategoryId,
-                SubCategoryName = product.SubCategoryMaster?.Name ?? string.Empty,
-                CategoryName = product.SubCategoryMaster?.CategoryMaster?.Name ?? string.Empty,
-                ImageUrls = imageUrls
-            };
-        }
-
         // Create Product
-        public async Task<ProductDto> CreateProductAsync(int vendorId, CreateProductDto createDto)
+        public async Task<ProductDto> CreateProductAsync(int VendorId, CreateProductDto createDto, HttpContext httpContext)
         {
-            // Verify vendor exists and is active
-            var vendor = await _context.VendorMasters
-                .FirstOrDefaultAsync(v => v.Id == vendorId && v.IsActive);
+            // Get current user from context
+            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
+                throw new UnauthorizedAccessException("User not authenticated");
 
-            if (vendor == null)
-                throw new Exception("Vendor not found or inactive");
+            // Get current user with role
+            var currentUser = await _context.UserMasters
+                .Include(u => u.RoleMaster)
+                .FirstOrDefaultAsync(u => u.Id == currentUserId);
 
-            // Verify subcategory exists
+            if (currentUser == null)
+                throw new UnauthorizedAccessException("User not found");
+
+         
+            
+               var vendor = await _context.VendorMasters
+                    .FirstOrDefaultAsync(v => v.Id == VendorId);
+
+                if (vendor == null || !vendor.IsActive || !vendor.IsApproved)
+                    throw new Exception("Vendor profile not found, inactive, or not approved");
+
+               
+           
+            if (currentUser.RoleMaster.Name == "Admin" || currentUser.RoleMaster.Name == "SuperAdmin")
+            {
+
+                if (createDto.VendorId <= 0)
+                    throw new Exception("Vendor ID is required when creating product as admin");
+             
+            }
+            else
+            {
+                throw new UnauthorizedAccessException("Unauthorized role for product creation");
+            }
+
             var subCategory = await _context.SubCategoryMasters
+                .Include(sc => sc.CategoryMaster)
                 .FirstOrDefaultAsync(sc => sc.Id == createDto.SubCategoryId);
 
             if (subCategory == null)
                 throw new Exception("SubCategory not found");
 
-            // Upload product images
+            var existingProduct = await _context.ProductMasters
+                .FirstOrDefaultAsync(p => p.VendorId == VendorId &&
+                                          p.ProductName.ToLower() == createDto.ProductName.ToLower());
+
+            if (existingProduct != null)
+                throw new Exception($"Product with name '{createDto.ProductName}' already exists for this vendor");
+
             var imageUrls = await UploadProductImages(createDto.ProductImages);
 
-            // Create product
+   
             var product = new ProductMaster
             {
-                VendorId = vendorId,
+                VendorId = VendorId,
                 SubCategoryId = createDto.SubCategoryId,
                 ProductName = createDto.ProductName,
                 Description = createDto.Description,
                 Price = createDto.Price,
                 StockQuantity = createDto.StockQuantity,
                 CreatedAt = DateTime.UtcNow,
+                LastUpdatedAt = DateTime.UtcNow,
                 IsActive = true
             };
 
             _context.ProductMasters.Add(product);
             await _context.SaveChangesAsync();
 
-            // Save product images
             if (imageUrls.Any())
             {
-                var productImages = imageUrls.Select(url => new ProductImages
+                var productImages = new List<ProductImages>();
+
+                for (int i = 0; i < imageUrls.Count; i++)
                 {
-                    ProductId = product.Id,
-                    ImageUrl = url
-                }).ToList();
+                    productImages.Add(new ProductImages
+                    {
+                        ProductId = product.Id,
+                        ImageUrl = imageUrls[i],
+                    });
+                }
 
                 _context.ProductImages.AddRange(productImages);
                 await _context.SaveChangesAsync();
             }
 
-            return await ConvertToProductDto(product);
+            return ConvertToProductDto(product);
         }
 
-        // Get Product by ID
         public async Task<ProductDto> GetProductByIdAsync(int productId)
         {
             var product = await _context.ProductMasters
@@ -155,34 +167,166 @@ namespace AlphaLogistics.API.Services
             if (product == null)
                 throw new Exception("Product not found");
 
-            return await ConvertToProductDto(product);
+            return ConvertToProductDto(product);
         }
 
         // Get All Products
-        public async Task<List<ProductDto>> GetAllProductsAsync(bool? isActive = null)
+        public async Task<ProductListResponseDto> GetAllProductsAsync(
+      int pageNumber = 1,
+      int pageSize = 10,
+      bool? isActive = null,
+      int? categoryId = null,
+      int? subCategoryId = null,
+      string? globalSearchQuery = null,
+      decimal? minPrice = null,
+      decimal? maxPrice = null,
+      string? sortBy = "createdAt",
+      string? sortOrder = "desc")
         {
+            // Validate pagination parameters
+            pageNumber = pageNumber < 1 ? 1 : pageNumber;
+            pageSize = pageSize < 1 ? 10 : (pageSize > 100 ? 100 : pageSize);
+
+            // Build query
             var query = _context.ProductMasters
                 .Include(p => p.VendorMaster)
+                    .ThenInclude(v => v.UserMaster)
                 .Include(p => p.SubCategoryMaster)
                     .ThenInclude(sc => sc.CategoryMaster)
+                .Include(p => p.ProductImages) // Include product images
                 .AsQueryable();
 
+            // Apply filters
             if (isActive.HasValue)
             {
                 query = query.Where(p => p.IsActive == isActive.Value);
             }
 
-            var products = await query
-                .OrderByDescending(p => p.CreatedAt)
-                .ToListAsync();
-
-            var productDtos = new List<ProductDto>();
-            foreach (var product in products)
+            if (categoryId.HasValue)
             {
-                productDtos.Add(await ConvertToProductDto(product));
+                query = query.Where(p => p.SubCategoryMaster != null &&
+                                        p.SubCategoryMaster.CategoryId == categoryId.Value);
             }
 
-            return productDtos;
+            if (subCategoryId.HasValue)
+            {
+                query = query.Where(p => p.SubCategoryId == subCategoryId.Value);
+            }
+
+            if (minPrice.HasValue)
+            {
+                query = query.Where(p => p.Price >= minPrice.Value);
+            }
+
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(p => p.Price <= maxPrice.Value);
+            }
+
+            // Global search across multiple fields
+            if (!string.IsNullOrWhiteSpace(globalSearchQuery))
+            {
+                var searchTerm = globalSearchQuery.ToLower().Trim();
+                query = query.Where(p =>
+                    p.ProductName.ToLower().Contains(searchTerm) || // Changed from Name to ProductName
+                    p.Description.ToLower().Contains(searchTerm) ||
+                    (p.VendorMaster != null && p.VendorMaster.VendorName.ToLower().Contains(searchTerm)) ||
+                    (p.SubCategoryMaster != null && p.SubCategoryMaster.Name.ToLower().Contains(searchTerm)) ||
+                    (p.SubCategoryMaster != null &&
+                     p.SubCategoryMaster.CategoryMaster != null &&
+                     p.SubCategoryMaster.CategoryMaster.Name.ToLower().Contains(searchTerm)));
+            }
+
+            // Get total count before pagination
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            // Apply sorting
+            query = ApplySorting(query, sortBy, sortOrder);
+
+            // Apply pagination
+            var products = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Convert to DTOs
+            var productDtos = products.Select(p => ConvertToProductDto(p)).ToList();
+
+            // Return paginated response
+            return new ProductListResponseDto
+            {
+                Products = productDtos,
+                CurrentPage = pageNumber,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages,
+                HasPrevious = pageNumber > 1,
+                HasNext = pageNumber < totalPages
+            };
+        }
+
+        // Helper method for sorting
+        private IQueryable<ProductMaster> ApplySorting(
+            IQueryable<ProductMaster> query,
+            string sortBy,
+            string sortOrder)
+        {
+            var isDescending = sortOrder?.ToLower() == "desc";
+
+            return sortBy?.ToLower() switch
+            {
+                "name" => isDescending
+                    ? query.OrderByDescending(p => p.ProductName) // Changed from Name to ProductName
+                    : query.OrderBy(p => p.ProductName),
+                "price" => isDescending
+                    ? query.OrderByDescending(p => p.Price)
+                    : query.OrderBy(p => p.Price),
+                "createdat" => isDescending
+                    ? query.OrderByDescending(p => p.CreatedAt)
+                    : query.OrderBy(p => p.CreatedAt),
+                "updatedat" => isDescending
+                    ? query.OrderByDescending(p => p.LastUpdatedAt)
+                    : query.OrderBy(p => p.LastUpdatedAt),
+                "stock" => isDescending
+                    ? query.OrderByDescending(p => p.StockQuantity)
+                    : query.OrderBy(p => p.StockQuantity),
+                _ => isDescending
+                    ? query.OrderByDescending(p => p.CreatedAt)
+                    : query.OrderBy(p => p.CreatedAt) // Default sort by createdAt
+            };
+        }
+
+        // Updated ConvertToProductDto method
+        private ProductDto ConvertToProductDto(ProductMaster product)
+        {
+            return new ProductDto
+            {
+                Id = product.Id,
+                ProductName = product.ProductName, // Changed from Name to ProductName
+                Description = product.Description,
+                Price = product.Price,
+                StockQuantity = product.StockQuantity,
+                IsActive = product.IsActive,
+                CreatedAt = product.CreatedAt,
+                LastUpdatedAt = product.LastUpdatedAt,
+
+                VendorId = product.VendorId,
+                VendorName = product.VendorMaster?.VendorName ?? "Unknown Vendor",
+
+                SubCategoryId = product.SubCategoryId,
+                SubCategoryName = product.SubCategoryMaster?.Name ?? "Unknown Subcategory",
+
+                CategoryId = product.SubCategoryMaster?.CategoryId ?? 0,
+                CategoryName = product.SubCategoryMaster?.CategoryMaster?.Name ?? "Unknown Category",
+
+                ProductImages = product.ProductImages?.Select(pi => new ProductImageDto
+                {
+                    Id = pi.Id,
+                    ImageUrl = pi.ImageUrl,
+                    ProductId = pi.ProductId
+                }).ToList() ?? new List<ProductImageDto>()
+            };
         }
 
         // Get Products by Vendor
@@ -207,7 +351,7 @@ namespace AlphaLogistics.API.Services
             var productDtos = new List<ProductDto>();
             foreach (var product in products)
             {
-                productDtos.Add(await ConvertToProductDto(product));
+                productDtos.Add(ConvertToProductDto(product));
             }
 
             return productDtos;
@@ -235,7 +379,7 @@ namespace AlphaLogistics.API.Services
             var productDtos = new List<ProductDto>();
             foreach (var product in products)
             {
-                productDtos.Add(await ConvertToProductDto(product));
+                productDtos.Add(ConvertToProductDto(product));
             }
 
             return productDtos;
@@ -312,7 +456,7 @@ namespace AlphaLogistics.API.Services
             }
 
             await _context.SaveChangesAsync();
-            return await ConvertToProductDto(product);
+            return  ConvertToProductDto(product);
         }
 
         // Soft Delete Product
@@ -574,33 +718,6 @@ namespace AlphaLogistics.API.Services
             return true;
         }
 
-        // Search Products
-        public async Task<List<ProductDto>> SearchProductsAsync(string searchTerm)
-        {
-            if (string.IsNullOrWhiteSpace(searchTerm))
-                return await GetAllProductsAsync(true);
-
-            var products = await _context.ProductMasters
-                .Include(p => p.VendorMaster)
-                .Include(p => p.SubCategoryMaster)
-                    .ThenInclude(sc => sc.CategoryMaster)
-                .Where(p => p.IsActive &&
-                           (p.ProductName.Contains(searchTerm) ||
-                            p.Description.Contains(searchTerm) ||
-                            p.VendorMaster.VendorName.Contains(searchTerm)))
-                .OrderByDescending(p => p.CreatedAt)
-                .ToListAsync();
-
-            var productDtos = new List<ProductDto>();
-            foreach (var product in products)
-            {
-                productDtos.Add(await ConvertToProductDto(product));
-            }
-
-            return productDtos;
-        }
-
-        // Get Products by Price Range
         public async Task<List<ProductDto>> GetProductsByPriceRangeAsync(decimal minPrice, decimal maxPrice)
         {
             var products = await _context.ProductMasters
@@ -614,7 +731,7 @@ namespace AlphaLogistics.API.Services
             var productDtos = new List<ProductDto>();
             foreach (var product in products)
             {
-                productDtos.Add(await ConvertToProductDto(product));
+                productDtos.Add(ConvertToProductDto(product));
             }
 
             return productDtos;

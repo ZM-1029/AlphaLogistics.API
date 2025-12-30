@@ -21,6 +21,8 @@ namespace AlphaLogistics.API.DTO
         [Required]
         public int SubCategoryId { get; set; }
 
+        public int? VendorId { get; set; }
+
         public List<IFormFile>? ProductImages { get; set; }
     }
 }

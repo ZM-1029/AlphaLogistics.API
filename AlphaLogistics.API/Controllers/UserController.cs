@@ -184,18 +184,31 @@ namespace AlphaLogistics.API.Controllers
         [HttpGet]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetAllVendors(
-        [FromQuery] bool? isActive = null,
-        [FromQuery] bool? isApproved = null)
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] bool? isActive = null,
+    [FromQuery] bool? isApproved = null,
+    [FromQuery] string? customerType = null,
+    [FromQuery] string? vendorName = null,
+    [FromQuery] string? search = null)
         {
             try
             {
-                var vendors = await _userService.GetAllVendorsAsync(isActive, isApproved);
-                return SuccessResponse(vendors);
+                var result = await _userService.GetAllVendorsAsync(
+                    pageNumber: page,
+                    pageSize: pageSize,
+                    isActive: isActive,
+                    isApproved: isApproved,
+                    customerType: customerType,
+                    vendorName: vendorName,
+                    searchQuery: search);
+
+                return SuccessResponse(result);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting vendors");
-                return ErrorResponse<string>(ex.Message);
+                return ConflictResponse<string>(ex.Message);
             }
         }
 
