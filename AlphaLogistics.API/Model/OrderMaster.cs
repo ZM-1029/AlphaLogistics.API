@@ -17,6 +17,5 @@ namespace AlphaLogistics.API.Model
         public UserMaster? UserMaster { get; set; }
         public ICollection<OrderItems>? OrderItems { get; set; }
 
-
     }
 }

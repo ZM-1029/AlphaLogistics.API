@@ -140,7 +140,7 @@ namespace AlphaLogistics.API.Services
                     {
                         var roleName = currentUser.RoleMaster.Name;
                         if (roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
-                            roleName.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                            roleName.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
                         {
                             createdByUserId = currentUserId;
                             isAdminOrSuperAdmin = true;
@@ -223,15 +223,16 @@ namespace AlphaLogistics.API.Services
                     throw new Exception($"{dbEx.InnerException}");
                 }
             }
-                var documents = new List<DocumentMaster>();
+
+            var documents = new List<DocumentMaster>();
             if (registerDto.Documents != null && registerDto.Documents.Any())
             {
-                foreach (var documentFile in registerDto.Documents)
+                foreach (var documentDto in registerDto.Documents)
                 {
                     var document = await UploadDocument(
-                        documentFile,
+                        documentDto.DocumentFile, 
                         vendor.Id,
-                        documentFile.FileName
+                        documentDto.DocumentName 
                     );
 
                     if (document != null)
@@ -438,7 +439,6 @@ namespace AlphaLogistics.API.Services
                 Console.WriteLine($"Error checking user role: {ex.Message}");
             }
 
-            // Update vendor details
             if (!string.IsNullOrEmpty(updateDto.VendorName))
                 vendor.VendorName = updateDto.VendorName;
 
@@ -446,7 +446,13 @@ namespace AlphaLogistics.API.Services
                 vendor.ContactPerson = updateDto.ContactPerson;
 
             if (!string.IsNullOrEmpty(updateDto.PAN))
+            {
+              
+                if (await _context.VendorMasters.AnyAsync(v => v.PAN == updateDto.PAN && v.Id != vendorId))
+                    throw new Exception("PAN number already registered");
+
                 vendor.PAN = updateDto.PAN;
+            }
 
             if (!string.IsNullOrEmpty(updateDto.VAT))
                 vendor.VAT = updateDto.VAT;
@@ -475,14 +481,14 @@ namespace AlphaLogistics.API.Services
             if (updateDto.IsActive.HasValue)
                 vendor.IsActive = updateDto.IsActive.Value;
 
-            
+
             if (updateDto.IsApproved)
             {
                 if (isAdminOrSuperAdmin)
                 {
                     vendor.IsApproved = updateDto.IsApproved;
 
-                    
+
                     if (vendor.IsApproved && !vendor.IsActive)
                         vendor.IsActive = true;
                 }
@@ -494,12 +500,22 @@ namespace AlphaLogistics.API.Services
 
             vendor.LastUpdatedAt = DateTime.UtcNow;
 
-            // Set UpdatedBy only if Admin/SuperAdmin is updating
             if (isAdminOrSuperAdmin)
                 vendor.UpdatedBy = updatedByUserId;
 
+            var currDirectory = Directory.GetCurrentDirectory();
             if (updateDto.ProfileImage != null)
             {
+               
+                if (!string.IsNullOrEmpty(vendor.UserMaster.ProfileImage))
+                {
+                    var oldImagePath = Path.Combine(currDirectory, vendor.UserMaster.ProfileImage.TrimStart('/'));
+                    if (File.Exists(oldImagePath))
+                    {
+                        File.Delete(oldImagePath);
+                    }
+                }
+
                 vendor.UserMaster.ProfileImage = await UploadProfileImage(updateDto.ProfileImage);
             }
 
@@ -507,12 +523,19 @@ namespace AlphaLogistics.API.Services
 
             if (updateDto.DocumentsToAdd != null && updateDto.DocumentsToAdd.Any())
             {
-                foreach (var documentFile in updateDto.DocumentsToAdd)
+                foreach (var documentDto in updateDto.DocumentsToAdd)
                 {
+                   
+                    if (string.IsNullOrWhiteSpace(documentDto.DocumentName))
+                        throw new Exception("Document name is required for all documents");
+
+                    if (documentDto.DocumentFile == null || documentDto.DocumentFile.Length == 0)
+                        throw new Exception("Document file is required for all documents");
+
                     var document = await UploadDocument(
-                        documentFile,
+                        documentDto.DocumentFile,  
                         vendor.Id,
-                        documentFile.FileName
+                        documentDto.DocumentName    
                     );
 
                     if (document != null)
@@ -528,8 +551,21 @@ namespace AlphaLogistics.API.Services
             if (updateDto.DocumentsToDelete != null && updateDto.DocumentsToDelete.Any())
             {
                 var docsToDelete = await _context.DocumentMasters
-                    .Where(d => updateDto.DocumentsToDelete.Contains(d.Id))
+                    .Where(d => updateDto.DocumentsToDelete.Contains(d.Id) && d.VendorId == vendorId)
                     .ToListAsync();
+
+               
+                foreach (var doc in docsToDelete)
+                {
+                    if (!string.IsNullOrEmpty(doc.DocumentUrl))
+                    {
+                        var filePath = Path.Combine("wwwroot", doc.DocumentUrl.TrimStart('/'));
+                        if (File.Exists(filePath))
+                        {
+                            File.Delete(filePath);
+                        }
+                    }
+                }
 
                 _context.DocumentMasters.RemoveRange(docsToDelete);
             }

@@ -6,7 +6,7 @@ namespace AlphaLogistics.API.Services
     {
         Task<CartResponseDto> GetCartByUserIdAsync(int userId);
         Task<CartItemResponseDto> AddToCartAsync(int userId, AddToCartDto addToCartDto);
-        Task<CartItemResponseDto> UpdateCartItemAsync(int cartItemId, UpdateCartItemDto updateDto);
+        //Task<CartItemResponseDto> UpdateCartItemAsync(int cartItemId, UpdateCartItemDto updateDto);
         Task<bool> RemoveFromCartAsync(int cartItemId);
         Task<bool> ClearCartAsync(int userId);
         Task<bool> RemoveProductFromCartAsync(int userId, int productId);

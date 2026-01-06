@@ -15,7 +15,7 @@ namespace AlphaLogistics.API.Services
         Task<ProductDto> UpdateProductAsync(int productId, UpdateProductDto updateDto);
         Task<bool> DeleteProductAsync(int productId); // Soft delete
         Task<bool> RestoreProductAsync(int productId);
-        Task<bool> DeleteProductPermanentlyAsync(int productId); // Hard delete (admin only)
+        Task<bool> DeleteProductPermanentlyAsync(int productId); //(admin only)
 
         // Category & SubCategory CRUD
         Task<CategoryDto> CreateCategoryAsync(CreateCategoryDto createDto);

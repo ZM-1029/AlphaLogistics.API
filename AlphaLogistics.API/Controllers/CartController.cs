@@ -8,7 +8,7 @@ using WALMS.API.Controllers;
 
 namespace AlphaLogistics.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]/[action]")]
     [ApiController]
     [Authorize]
     public class CartController : BaseController
@@ -23,7 +23,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // GET: api/cart/my-cart
-        [HttpGet("my-cart")]
+        [HttpGet]
         public async Task<IActionResult> GetMyCart()
         {
             try
@@ -39,8 +39,8 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // GET: api/cart/user/{userId}
-        [HttpGet("user/{userId}")]
-        [Authorize(Policy = "Admin")]
+        [HttpGet("{userId}")]
+        [Authorize]
         public async Task<IActionResult> GetCartByUserId(int userId)
         {
             try
@@ -56,7 +56,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // POST: api/cart/add
-        [HttpPost("add")]
+        [HttpPost]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto addToCartDto)
         {
             try
@@ -72,23 +72,23 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // PUT: api/cart/update/{cartItemId}
-        [HttpPut("update/{cartItemId}")]
-        public async Task<IActionResult> UpdateCartItem(int cartItemId, [FromBody] UpdateCartItemDto updateDto)
-        {
-            try
-            {
-                var cartItem = await _cartService.UpdateCartItemAsync(cartItemId, updateDto);
-                return SuccessResponse(cartItem, "Cart item updated successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error updating cart item {cartItemId}");
-                return ErrorResponse<string>(ex.Message);
-            }
-        }
+        //[HttpPut("{cartItemId}")]
+        //public async Task<IActionResult> UpdateCartItem(int cartItemId, [FromBody] UpdateCartItemDto updateDto)
+        //{
+        //    try
+        //    {
+        //        var cartItem = await _cartService.UpdateCartItemAsync(cartItemId, updateDto);
+        //        return SuccessResponse(cartItem, "Cart item updated successfully");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, $"Error updating cart item {cartItemId}");
+        //        return ErrorResponse<string>(ex.Message);
+        //    }
+        //}
 
-        // DELETE: api/cart/remove/{cartItemId}
-        [HttpDelete("remove/{cartItemId}")]
+     
+        [HttpDelete("{cartItemId}")]
         public async Task<IActionResult> RemoveFromCart(int cartItemId)
         {
             try
@@ -103,8 +103,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // DELETE: api/cart/remove-product/{productId}
-        [HttpDelete("remove-product/{productId}")]
+        [HttpDelete("{productId}")]
         public async Task<IActionResult> RemoveProductFromCart(int productId)
         {
             try
@@ -120,8 +119,8 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // DELETE: api/cart/clear
-        [HttpDelete("clear")]
+
+        [HttpDelete]
         public async Task<IActionResult> ClearCart()
         {
             try
@@ -137,8 +136,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // GET: api/cart/total
-        [HttpGet("total")]
+        [HttpGet]
         public async Task<IActionResult> GetCartTotal()
         {
             try
@@ -154,8 +152,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // GET: api/cart/count
-        [HttpGet("count")]
+        [HttpGet]
         public async Task<IActionResult> GetCartItemCount()
         {
             try
@@ -171,8 +168,8 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // GET: api/cart/inactive-items
-        [HttpGet("inactive-items")]
+
+        [HttpGet]
         public async Task<IActionResult> GetInactiveCartItems()
         {
             try
@@ -188,8 +185,8 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        // POST: api/cart/merge/{targetUserId}
-        [HttpPost("merge/{targetUserId}")]
+
+        [HttpPost("{targetUserId}")]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> MergeCarts(int targetUserId)
         {

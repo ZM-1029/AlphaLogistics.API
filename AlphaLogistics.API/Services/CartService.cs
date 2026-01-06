@@ -25,7 +25,6 @@ namespace AlphaLogistics.API.Services
             return userId;
         }
 
-        // Helper method to convert CartMaster to CartItemResponseDto
         private CartItemResponseDto ConvertToCartItemDto(CartMaster cartItem)
         {
             return new CartItemResponseDto
@@ -45,17 +44,15 @@ namespace AlphaLogistics.API.Services
             };
         }
 
-        // Get cart by user ID
+
         public async Task<CartResponseDto> GetCartByUserIdAsync(int userId)
         {
-            // Verify user exists
             var user = await _context.UserMasters
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
                 throw new Exception("User not found");
 
-            // Get cart items with product details
             var cartItems = await _context.CartMasters
                 .Include(c => c.ProductMaster)
                     .ThenInclude(p => p.VendorMaster)
@@ -65,10 +62,8 @@ namespace AlphaLogistics.API.Services
                 .OrderByDescending(c => c.CreatedAt)
                 .ToListAsync();
 
-            // Convert to DTOs
             var cartItemDtos = cartItems.Select(ConvertToCartItemDto).ToList();
 
-            // Get last updated time
             var lastUpdated = cartItems.Any() ? cartItems.Max(c => c.CreatedAt) : (DateTime?)null;
 
             return new CartResponseDto
@@ -100,11 +95,9 @@ namespace AlphaLogistics.API.Services
             if (!product.IsActive)
                 throw new Exception("Product is not active");
 
-            // Check stock availability
             if (product.StockQuantity < addToCartDto.Quantity)
                 throw new Exception($"Insufficient stock. Available: {product.StockQuantity}");
 
-            // Check if item already exists in cart
             var existingCartItem = await _context.CartMasters
                 .Include(c => c.ProductMaster)
                     .ThenInclude(p => p.VendorMaster)
@@ -114,19 +107,17 @@ namespace AlphaLogistics.API.Services
 
             if (existingCartItem != null)
             {
-                // Update quantity if item already exists
                 var newQuantity = existingCartItem.Quantity + addToCartDto.Quantity;
 
-                // Check stock again with new total quantity
                 if (product.StockQuantity < newQuantity)
                     throw new Exception($"Insufficient stock. Available: {product.StockQuantity}");
 
                 existingCartItem.Quantity = newQuantity;
-                existingCartItem.UnitPrice = product.Price; // Update price in case it changed
+                existingCartItem.UnitPrice = product.Price;
             }
             else
             {
-                // Add new item to cart
+                //for new item add
                 var cartItem = new CartMaster
                 {
                     UserId = userId,
@@ -142,7 +133,6 @@ namespace AlphaLogistics.API.Services
 
             await _context.SaveChangesAsync();
 
-            // Reload with navigation properties for response
             if (existingCartItem.ProductMaster == null)
             {
                 existingCartItem = await _context.CartMasters
@@ -156,8 +146,7 @@ namespace AlphaLogistics.API.Services
             return ConvertToCartItemDto(existingCartItem);
         }
 
-        // Update cart item quantity
-        public async Task<CartItemResponseDto> UpdateCartItemAsync(int cartItemId, UpdateCartItemDto updateDto)
+       /* public async Task<CartItemResponseDto> UpdateCartItemAsync(int cartItemId, UpdateCartItemDto updateDto)
         {
             var cartItem = await _context.CartMasters
                 .Include(c => c.ProductMaster)
@@ -182,14 +171,13 @@ namespace AlphaLogistics.API.Services
 
             // Update quantity and price
             cartItem.Quantity = updateDto.Quantity;
-            cartItem.UnitPrice = cartItem.ProductMaster.Price; // Update price in case it changed
+            cartItem.UnitPrice = cartItem.ProductMaster.Price;
 
             await _context.SaveChangesAsync();
 
             return ConvertToCartItemDto(cartItem);
-        }
+        }*/
 
-        // Remove item from cart by cart item ID
         public async Task<bool> RemoveFromCartAsync(int cartItemId)
         {
             var cartItem = await _context.CartMasters
@@ -204,7 +192,6 @@ namespace AlphaLogistics.API.Services
             return true;
         }
 
-        // Clear entire cart for user
         public async Task<bool> ClearCartAsync(int userId)
         {
             var cartItems = await _context.CartMasters
@@ -244,7 +231,7 @@ namespace AlphaLogistics.API.Services
                 .ToListAsync();
 
             var total = cartItems
-                .Where(c => c.ProductMaster.StockQuantity >= c.Quantity) // Only items in stock
+                .Where(c => c.ProductMaster.StockQuantity >= c.Quantity)
                 .Sum(c => c.Quantity * c.UnitPrice);
 
             return total;
@@ -299,7 +286,7 @@ namespace AlphaLogistics.API.Services
 
                 if (existingItem != null)
                 {
-                    // Merge quantities
+                    
                     existingItem.Quantity += sourceItem.Quantity;
                     // Update price to latest
                     var product = await _context.ProductMasters

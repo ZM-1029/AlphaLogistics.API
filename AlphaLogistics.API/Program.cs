@@ -66,10 +66,10 @@ builder.Services.AddAuthorization(options =>
 {
     // Add policies for different roles
     options.AddPolicy("SuperAdmin", policy =>
-        policy.RequireRole("Super Admin"));
+        policy.RequireRole("SuperAdmin"));
 
     options.AddPolicy("Admin", policy =>
-        policy.RequireRole("Super Admin", "Admin"));
+        policy.RequireRole("SuperAdmin", "Admin"));
 
     options.AddPolicy("Vendor", policy =>
         policy.RequireRole("Vendor"));
@@ -79,6 +79,7 @@ builder.Services.AddAuthorization(options =>
 // Register services
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ICartService, CartService>();
 
 
 // Add CORS 

@@ -163,7 +163,6 @@ namespace AlphaLogistics.API.Model
                 .Property(p => p.IsActive)
                 .HasDefaultValue(true);
 
-            //TimeStamp for Entities
             modelBuilder.Entity<CartMaster>()
                 .Property(c => c.CreatedAt)
                 .HasDefaultValueSql("NOW()");

@@ -54,11 +54,21 @@ namespace AlphaLogistics.API.DTO
 
         public IFormFile? ProfileImage { get; set; }
 
-        public List<IFormFile>? Documents { get; set; }
+        public List<DocumentDto>? Documents { get; set; }
 
         [Required]
         [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept terms and conditions")]
         public bool AcceptTerms { get; set; }
+    }
+
+    public class DocumentDto
+    {
+        [Required(ErrorMessage = "Document name is required")]
+        [StringLength(200, ErrorMessage = "Document name cannot exceed 200 characters")]
+        public string DocumentName { get; set; }
+
+        [Required(ErrorMessage = "Document file is required")]
+        public IFormFile DocumentFile { get; set; }
     }
 
 }

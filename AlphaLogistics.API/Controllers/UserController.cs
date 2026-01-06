@@ -244,7 +244,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpPost("{vendorId}/restore")]
+        [HttpPost("{vendorId}")]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> RestoreVendor(int vendorId)
         {
@@ -261,7 +261,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
 
-        [HttpGet("{vendorId}/documents")]
+        [HttpGet("{vendorId}")]
         [Authorize]
         public async Task<IActionResult> GetVendorDocuments(int vendorId)
         {
