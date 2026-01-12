@@ -20,11 +20,11 @@ namespace AlphaLogistics.API.DTO
         [Required]
         public string Phone { get; set; }
 
-        public string Address { get; set; }
+       // public string? Address { get; set; }
 
         //[Required]
         //public int RoleId { get; set; } = 5;  // User Role
 
-        public IFormFile? ProfileImage { get; set; }
+       // public IFormFile? ProfileImage { get; set; }
     }
 }

@@ -27,7 +27,7 @@ namespace AlphaLogistics.API.Controllers
         // POST: api/User/Register
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> Register([FromForm] RegisterUserDto registerDto)
+        public async Task<IActionResult> Register(RegisterUserDto registerDto)
         {
             try
             {
@@ -184,13 +184,13 @@ namespace AlphaLogistics.API.Controllers
         [HttpGet]
         [Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetAllVendors(
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10,
-    [FromQuery] bool? isActive = null,
-    [FromQuery] bool? isApproved = null,
-    [FromQuery] string? customerType = null,
-    [FromQuery] string? vendorName = null,
-    [FromQuery] string? search = null)
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool? isActive = null,
+            [FromQuery] bool? isApproved = null,
+            [FromQuery] string? customerType = null,
+            [FromQuery] string? vendorName = null,
+            [FromQuery] string? search = null)
         {
             try
             {
