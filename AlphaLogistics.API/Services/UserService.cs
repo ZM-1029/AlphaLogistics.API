@@ -646,11 +646,10 @@ namespace AlphaLogistics.API.Services
             };
         }
 
-        public async Task<VendorListResponseDto> GetAllVendorsAsync(int pageNumber = 1,int pageSize = 10,bool? isActive = null,
-            bool? isApproved = null,string? customerType = null,string? vendorName = null,string? searchQuery = null)
+        public async Task<VendorListResponseDto> GetAllVendorsAsync(VendorQueryDto dto)
         {
-            pageNumber = pageNumber < 1 ? 1 : pageNumber;
-            pageSize = pageSize < 1 ? 10 : (pageSize > 100 ? 100 : pageSize);
+            dto.Page = dto.Page < 1 ? 1 : dto.Page;
+            dto.PageSize = dto.PageSize < 1 ? 10 : (dto.PageSize > 100 ? 100 : dto.PageSize);
 
             var query = _context.VendorMasters
                 .Include(v => v.UserMaster)
@@ -661,45 +660,45 @@ namespace AlphaLogistics.API.Services
                 .AsQueryable();
 
           
-            if (isActive.HasValue)
+            if (dto.IsActive.HasValue)
             {
-                query = query.Where(v => v.IsActive == isActive.Value);
+                query = query.Where(v => v.IsActive == dto.IsActive.Value);
             }
 
-            if (isApproved.HasValue)
+            if (dto.IsApproved.HasValue)
             {
-                query = query.Where(v => v.IsApproved == isApproved.Value);
+                query = query.Where(v => v.IsApproved == dto.IsApproved.Value);
             }
 
-            if (!string.IsNullOrWhiteSpace(customerType))
+            if (!string.IsNullOrWhiteSpace(dto.CustomerType))
             {
-                query = query.Where(v => v.CustomerType == customerType);
+                query = query.Where(v => v.CustomerType == dto.CustomerType);
             }
 
-            if (!string.IsNullOrWhiteSpace(vendorName))
+            if (!string.IsNullOrWhiteSpace(dto.VendorName))
             {
-                query = query.Where(v => v.VendorName.Contains(vendorName));
+                query = query.Where(v => v.VendorName.Contains(dto.VendorName));
             }
 
-            if (!string.IsNullOrWhiteSpace(searchQuery))
+            if (!string.IsNullOrWhiteSpace(dto.Search))
             {
-                searchQuery = searchQuery.ToLower();
+                dto.Search = dto.Search.ToLower();
                 query = query.Where(v =>
-                    v.VendorName.ToLower().Contains(searchQuery) ||
-                    v.ContactPerson.ToLower().Contains(searchQuery) ||
-                    v.PAN.ToLower().Contains(searchQuery) ||
-                    v.UserMaster.Email.ToLower().Contains(searchQuery) ||
-                    v.UserMaster.Phone.Contains(searchQuery));
+                    v.VendorName.ToLower().Contains(dto.Search) ||
+                    v.ContactPerson.ToLower().Contains(dto.Search) ||
+                    v.PAN.ToLower().Contains(dto.Search) ||
+                    v.UserMaster.Email.ToLower().Contains(dto.Search) ||
+                    v.UserMaster.Phone.Contains(dto.Search));
             }
 
             var totalCount = await query.CountAsync();
 
-            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            var totalPages = (int)Math.Ceiling(totalCount / (double)dto.PageSize);
 
             var vendors = await query
                 .OrderByDescending(v => v.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+                .Skip((dto.Page - 1) * dto.PageSize)
+                .Take(dto.PageSize)
                 .ToListAsync();
 
             var vendorDtos = vendors.Select(v => new VendorResponseDto
@@ -745,12 +744,12 @@ namespace AlphaLogistics.API.Services
             return new VendorListResponseDto
             {
                 Vendors = vendorDtos,
-                CurrentPage = pageNumber,
-                PageSize = pageSize,
+                CurrentPage = dto.Page,
+                PageSize = dto.PageSize,
                 TotalCount = totalCount,
                 TotalPages = totalPages,
-                HasPrevious = pageNumber > 1,
-                HasNext = pageNumber < totalPages
+                HasPrevious = dto.Page > 1,
+                HasNext = dto.Page < totalPages
             };
         }
 
