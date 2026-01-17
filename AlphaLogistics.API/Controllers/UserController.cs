@@ -27,7 +27,7 @@ namespace AlphaLogistics.API.Controllers
         // POST: api/User/Register
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> Register([FromForm] RegisterUserDto registerDto)
+        public async Task<IActionResult> Register(RegisterUserDto registerDto)
         {
             try
             {

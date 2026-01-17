@@ -78,11 +78,11 @@ namespace AlphaLogistics.API.Services
             if (role == null)
                 throw new Exception("Invalid role");
 
-            string? profileImageUrl = null;
+           /* string? profileImageUrl = null;
             if (registerDto.ProfileImage != null)
             {
                 profileImageUrl = await UploadProfileImage(registerDto.ProfileImage);
-            }
+            }*/
 
             var user = new UserMaster
             {
@@ -90,9 +90,9 @@ namespace AlphaLogistics.API.Services
                 Email = registerDto.Email,
                 Password = HashPassword(registerDto.Password),
                 Phone = registerDto.Phone,
-                Address = registerDto.Address,
+                //Address = registerDto.Address,
                 RoleId = 5,
-                ProfileImage = profileImageUrl,
+               // ProfileImage = profileImageUrl,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true,
                 RoleMaster = role
@@ -295,13 +295,13 @@ namespace AlphaLogistics.API.Services
                 throw new Exception("Invalid email or password");
 
             var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.UserName),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.RoleMaster?.Name ?? "User"),
-            new Claim("UserId", user.Id.ToString())
-        };
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.RoleMaster?.Name ?? "User"),
+                new Claim("UserId", user.Id.ToString())
+            };
 
             var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             var authProperties = new AuthenticationProperties

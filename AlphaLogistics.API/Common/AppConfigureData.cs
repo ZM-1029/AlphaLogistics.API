@@ -3,6 +3,7 @@
     public class AppConfigureData
     {      
         public Dictionary<string, string> Salutation { get; set; }
+        public Dictionary<string, string> OrderStatus { get; set; }
         public Dictionary<string, string> CommunicationType { get; set; }
         public Dictionary<string, string> ValueType { get; set; }
         public Dictionary<string, string> AdditonalType { get; set; }
