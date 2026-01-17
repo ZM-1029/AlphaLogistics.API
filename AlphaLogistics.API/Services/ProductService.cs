@@ -171,21 +171,11 @@ namespace AlphaLogistics.API.Services
         }
 
         // Get All Products
-        public async Task<ProductListResponseDto> GetAllProductsAsync(
-      int pageNumber = 1,
-      int pageSize = 10,
-      bool? isActive = null,
-      int? categoryId = null,
-      int? subCategoryId = null,
-      string? globalSearchQuery = null,
-      decimal? minPrice = null,
-      decimal? maxPrice = null,
-      string? sortBy = "createdAt",
-      string? sortOrder = "desc")
+        public async Task<ProductListResponseDto> GetAllProductsAsync(ProductQueryDto dto)
         {
             // Validate pagination parameters
-            pageNumber = pageNumber < 1 ? 1 : pageNumber;
-            pageSize = pageSize < 1 ? 10 : (pageSize > 100 ? 100 : pageSize);
+            dto.page = dto.page < 1 ? 1 : dto.page;
+            dto.pageSize = dto.pageSize < 1 ? 10 : (dto.pageSize > 100 ? 100 : dto.pageSize);
 
             // Build query
             var query = _context.ProductMasters
@@ -197,36 +187,36 @@ namespace AlphaLogistics.API.Services
                 .AsQueryable();
 
             // Apply filters
-            if (isActive.HasValue)
+            if (dto.isActive.HasValue)
             {
-                query = query.Where(p => p.IsActive == isActive.Value);
+                query = query.Where(p => p.IsActive == dto.isActive.Value);
             }
 
-            if (categoryId.HasValue)
+            if (dto.categoryId.HasValue)
             {
                 query = query.Where(p => p.SubCategoryMaster != null &&
-                                        p.SubCategoryMaster.CategoryId == categoryId.Value);
+                                        p.SubCategoryMaster.CategoryId == dto.categoryId.Value);
             }
 
-            if (subCategoryId.HasValue)
+            if (dto.subCategoryId.HasValue)
             {
-                query = query.Where(p => p.SubCategoryId == subCategoryId.Value);
+                query = query.Where(p => p.SubCategoryId == dto.subCategoryId.Value);
             }
 
-            if (minPrice.HasValue)
+            if (dto.minPrice.HasValue)
             {
-                query = query.Where(p => p.Price >= minPrice.Value);
+                query = query.Where(p => p.Price >= dto.minPrice.Value);
             }
 
-            if (maxPrice.HasValue)
+            if (dto.maxPrice.HasValue)
             {
-                query = query.Where(p => p.Price <= maxPrice.Value);
+                query = query.Where(p => p.Price <= dto.maxPrice.Value);
             }
 
             // Global search across multiple fields
-            if (!string.IsNullOrWhiteSpace(globalSearchQuery))
+            if (!string.IsNullOrWhiteSpace(dto.globalSearchQuery))
             {
-                var searchTerm = globalSearchQuery.ToLower().Trim();
+                var searchTerm = dto.globalSearchQuery.ToLower().Trim();
                 query = query.Where(p =>
                     p.ProductName.ToLower().Contains(searchTerm) || // Changed from Name to ProductName
                     p.Description.ToLower().Contains(searchTerm) ||
@@ -239,15 +229,15 @@ namespace AlphaLogistics.API.Services
 
             // Get total count before pagination
             var totalCount = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            var totalPages = (int)Math.Ceiling(totalCount / (double)dto.pageSize);
 
             // Apply sorting
-            query = ApplySorting(query, sortBy, sortOrder);
+            query = ApplySorting(query, dto.sortBy, dto.sortOrder);
 
             // Apply pagination
             var products = await query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+                .Skip((dto.page - 1) * dto.pageSize)
+                .Take(dto.pageSize)
                 .ToListAsync();
 
             // Convert to DTOs
@@ -257,12 +247,12 @@ namespace AlphaLogistics.API.Services
             return new ProductListResponseDto
             {
                 Products = productDtos,
-                CurrentPage = pageNumber,
-                PageSize = pageSize,
+                CurrentPage = dto.page,
+                PageSize = dto.pageSize,
                 TotalCount = totalCount,
                 TotalPages = totalPages,
-                HasPrevious = pageNumber > 1,
-                HasNext = pageNumber < totalPages
+                HasPrevious = dto.page > 1,
+                HasNext = dto.page < totalPages
             };
         }
 

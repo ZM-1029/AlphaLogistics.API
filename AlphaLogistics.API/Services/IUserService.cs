@@ -17,8 +17,7 @@ namespace AlphaLogistics.API.Services
         
         Task<VendorResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto,HttpContext httpContext);
 
-        Task<VendorListResponseDto> GetAllVendorsAsync(int pageNumber = 1,int pageSize = 10,bool? isActive = null,bool? isApproved = null,
-                                     string? customerType = null,string? vendorName = null, string? searchQuery = null);
+        Task<VendorListResponseDto> GetAllVendorsAsync(VendorQueryDto dto);
         Task<VendorResponseDto> GetVendorByIdAsync(int vendorId);
         Task<VendorResponseDto> UpdateVendorAsync(int vendorId, UpdateVendorDto updateDto, HttpContext httpContext);
         Task<bool> DeleteVendorAsync(int vendorId);
