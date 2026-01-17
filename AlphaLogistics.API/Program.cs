@@ -87,15 +87,14 @@ builder.Services.AddScoped<ICartService, CartService>();
 // Add CORS 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
-    {
-        builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader();
-               //.AllowCredentials();
-    });
+    options.AddPolicy("AllowSpecificOrigin",
+        builder =>
+        {
+            builder.AllowAnyOrigin()
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
 });
-
 
 var app = builder.Build();
 
@@ -105,12 +104,13 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.UseCors("AllowSpecificOrigin");
 
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseStaticFiles();
 
-app.UseCors("AllowAll");
+
 
 app.UseAuthentication();
 
