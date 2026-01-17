@@ -7,9 +7,7 @@ namespace AlphaLogistics.API.Services
         // Product CRUD
         Task<ProductDto> CreateProductAsync(int vendorId, CreateProductDto createDto, HttpContext httpContext);
         Task<ProductDto> GetProductByIdAsync(int productId);
-        Task<ProductListResponseDto> GetAllProductsAsync(int pageNumber = 1,int pageSize = 10,
-    bool? isActive = null,int? categoryId = null,int? subCategoryId = null,string? globalSearchQuery = null,
-    decimal? minPrice = null,decimal? maxPrice = null,string? sortBy = "createdAt",string? sortOrder = "desc");
+        Task<ProductListResponseDto> GetAllProductsAsync(ProductQueryDto dto);
         Task<List<ProductDto>> GetProductsByVendorAsync(int vendorId, bool? isActive = null);
         Task<List<ProductDto>> GetProductsBySubCategoryAsync(int subCategoryId, bool? isActive = null);
         Task<ProductDto> UpdateProductAsync(int productId, UpdateProductDto updateDto);

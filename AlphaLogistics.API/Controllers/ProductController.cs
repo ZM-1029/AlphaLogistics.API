@@ -61,31 +61,11 @@ namespace AlphaLogistics.API.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<IActionResult> GetAllProducts(
-             [FromQuery] int page = 1,
-             [FromQuery] int pageSize = 10,
-             [FromQuery] bool? isActive = null,
-             [FromQuery] int? categoryId = null,
-             [FromQuery] int? subCategoryId = null,
-             [FromQuery] string? search = null,
-             [FromQuery] decimal? minPrice = null,
-             [FromQuery] decimal? maxPrice = null,
-             [FromQuery] string? sortBy = "createdAt",
-             [FromQuery] string? sortOrder = "desc")
+        public async Task<IActionResult> GetAllProducts([FromQuery] ProductQueryDto dto)
         {
             try
             {
-                var result = await _productService.GetAllProductsAsync(
-                    pageNumber: page,
-                    pageSize: pageSize,
-                    isActive: isActive,
-                    categoryId: categoryId,
-                    subCategoryId: subCategoryId,
-                    globalSearchQuery: search,
-                    minPrice: minPrice,
-                    maxPrice: maxPrice,
-                    sortBy: sortBy,
-                    sortOrder: sortOrder);
+                var result = await _productService.GetAllProductsAsync(dto);
 
                 return SuccessResponse(result);
             }
