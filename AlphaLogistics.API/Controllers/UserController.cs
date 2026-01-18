@@ -181,9 +181,9 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpPost]
         [Authorize(Policy = "Admin")]
-        public async Task<IActionResult> GetAllVendors([FromQuery] VendorQueryDto query)
+        public async Task<IActionResult> GetAllVendors( VendorQueryDto query)
         {
             try
             {
