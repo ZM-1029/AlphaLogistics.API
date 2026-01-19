@@ -61,7 +61,7 @@ namespace AlphaLogistics.API.Controllers
 
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> GetAllProducts(ProductQueryDto dto)
+        public async Task<IActionResult> GetAllProducts( ProductQueryDto dto)
         {
             try
             {
