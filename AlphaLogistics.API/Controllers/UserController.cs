@@ -26,9 +26,87 @@ namespace AlphaLogistics.API.Controllers
         }
 
         // POST: api/User/Register
+
+        #region Customer APIs
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> Register(RegisterUserDto registerDto)
+        public async Task<IActionResult> RegisterCustomer(CustomerCreateDTO registerDto) // For customer registration
+        {
+            try
+            {
+                var result = await _userService.RegisterCustomerAsync(registerDto);
+                return SuccessResponse(result, "customer registered successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error registering user");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> UpdateCustomer(CustomerCreateDTO registerDto)
+        {
+            try
+            {
+                var result = await _userService.UpdateCustomerAsync(registerDto);
+                return SuccessResponse(result, "customer updated successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error registering user");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetCustomerList()
+        {
+            var customerList = await _userService.GetAllCustomerAsync();
+            if (!customerList.Any()) return NoContentResponse<string>("No customer found!");
+            return SuccessResponse(customerList, "Customer retrieved successfully");
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetCustomerById(int customerId)
+        {
+            if (customerId <= 0) return ErrorResponse<string>("Invalid inputs");
+            var customer = await _userService.GetCustomerByIdAsync(customerId);
+            if (customer == null) return NoContentResponse<string>("No customer found!");
+            return SuccessResponse(customer, "Customer retrieved successfully");
+        }
+
+        #endregion
+
+        #region Pradesh APIs
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> ActivePradeshList()
+        {
+            var pradeshList = _userService.GetActivePradeshList();
+            if (!pradeshList.Any()) return NoContentResponse<string>("No active pradesh found");
+
+            var response = pradeshList
+                .Select(p => new
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    p.Charge,
+                })
+                .OrderBy(p => p.Name)
+                .ToList();
+
+            return SuccessResponse(response, "Active pradesh list retrieved successfully");
+        }
+        #endregion
+
+        # region User APIs
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> Register([FromForm] RegisterUserDto registerDto) // For Internal users-> Admin, Finance etc
         {
             try
             {
@@ -41,8 +119,7 @@ namespace AlphaLogistics.API.Controllers
                 return ErrorResponse<string>(ex.Message);
             }
         }
-
-
+       
         // POST: api/User/Login
         [HttpPost]
         [AllowAnonymous]
@@ -140,6 +217,9 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
+        #endregion
+
+        #region Vendor APIs
         [HttpPost("register")]
         public async Task<IActionResult> RegisterVendor([FromForm] RegisterVendorDto registerDto)
         {
@@ -303,6 +383,8 @@ namespace AlphaLogistics.API.Controllers
                 return ErrorResponse<string>(ex.Message);
             }
         }
+
+        #endregion
 
         /*
         [HttpPut("update-profile")]

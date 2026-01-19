@@ -26,17 +26,12 @@ namespace WALMS.API.Common
 		}
 		
 		public static class UserRole
-		{
-			public const int Driver = 13;
-			public const int Mate =12;		
-			public const int Customer =9;
+		{	
+			public const int Customer =6;
 			public const int SuperAdmin =1;
-			public const int Admin =15;
-			public const int User =2;
-			public const int AccountManager =16;
-			public const int WareHouseWorker = 17;
-			public const int Employee = 19;
-			
+			public const int Admin =3;
+			public const int CustomerService =5;
+			public const int Vendor =4;		
 		}
 
      

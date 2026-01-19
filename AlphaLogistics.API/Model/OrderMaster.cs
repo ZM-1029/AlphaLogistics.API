@@ -13,7 +13,9 @@ namespace AlphaLogistics.API.Model
         public DateTime OrderDate { get; set; }
         public decimal TotalAmount { get; set; }
         public int Status { get; set; }
-
+        public decimal? DeliveryCharge { get; set; }
+        public bool IsPlacedByAdmin { get; set; } = false;
+        
         public UserMaster? UserMaster { get; set; }
         public ICollection<OrderItems>? OrderItems { get; set; }
 

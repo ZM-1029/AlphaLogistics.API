@@ -18,6 +18,7 @@ namespace AlphaLogistics.API.Model
         public virtual DbSet<VendorMaster> VendorMasters { get; set; }
         public virtual DbSet<CategoryMaster> CategoryMasters { get; set; }
         public virtual DbSet<SubCategoryMaster> SubCategoryMasters { get; set; }
+        public virtual DbSet<PradeshMaster> PradeshMasters { get; set; }
 
 
          public AlphaLogisticsContext(DbContextOptions<AlphaLogisticsContext> options)

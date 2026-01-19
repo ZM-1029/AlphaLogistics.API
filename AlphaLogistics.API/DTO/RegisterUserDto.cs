@@ -23,8 +23,8 @@ namespace AlphaLogistics.API.DTO
        // public string? Address { get; set; }
 
         //[Required]
-        //public int RoleId { get; set; } = 5;  // User Role
+        public int RoleId { get; set; }  // User Role
 
-       // public IFormFile? ProfileImage { get; set; }
+        public IFormFile? ProfileImage { get; set; }
     }
 }

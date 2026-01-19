@@ -1,10 +1,16 @@
 ﻿using AlphaLogistics.API.DTO;
+using AlphaLogistics.API.Model;
 
 namespace AlphaLogistics.API.Services
 {
     public interface IUserService
     {
         // User operations
+        public  Task<dynamic> GetCustomerByIdAsync(int customerId);
+        public  Task<List<dynamic>> GetAllCustomerAsync();
+        public  Task<bool> UpdateCustomerAsync(CustomerCreateDTO registerDto);
+        public  Task<bool> RegisterCustomerAsync(CustomerCreateDTO registerDto);
+        public List<PradeshMaster> GetActivePradeshList();
         Task<UserResponseDto> RegisterUserAsync(RegisterUserDto registerDto);
         Task<UserResponseDto> GetUserByIdAsync(int id);
         Task<List<UserResponseDto>> GetAllUsersAsync(int? roleId = null);

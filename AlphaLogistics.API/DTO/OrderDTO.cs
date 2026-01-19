@@ -8,6 +8,7 @@ namespace AlphaLogistics.API.DTO
     {
        // public int Id { get; set; }
         public string? OrderNumber { get; set; }
+        public decimal? DeliveryCharge { get; set; }
         public decimal? TotalAmount { get; set; }
         public List<OrderItemDTO> OrderItems { get; set; }
     }

@@ -14,6 +14,7 @@ namespace AlphaLogistics.API.Model
         public string Password { get; set; }
         public string? Email { get; set; }
         public string? Address { get; set; }
+        public int? PradeshId { get; set; }
         public string Phone { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }

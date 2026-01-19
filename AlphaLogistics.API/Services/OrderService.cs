@@ -102,31 +102,32 @@ namespace AlphaLogistics.API.Services
                 return null;
             }
         }
-        public Task<bool> PlaceOrder(OrderDTO orders)
+        public Task<bool> PlaceOrder(OrderDTO order)
         {
             try
             {
                 var orderNumber = $"AL-{DateTime.Now.Ticks}";
-                var orderTotal = orders.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
+                var orderTotal = order.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
                 var userId = _userContext.UserId;
-                var order = new OrderMaster
+                var orderData = new OrderMaster
                 {
                     OrderNumber = orderNumber,
                     UserId = (int)userId,
-                    TotalAmount = orderTotal??0,
+                    DeliveryCharge = order.DeliveryCharge,
+                    TotalAmount = orderTotal??0 + order.DeliveryCharge??0,
                     Status = AppConstants.OrderStatus.Pending,
                     OrderDate = DateTime.UtcNow,
                 };
                 using (var transactionScope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
                 {
-                    var isAdded = _context.OrderMasters.Add(order);
+                    var isAdded = _context.OrderMasters.Add(orderData);
                     if (isAdded != null)
                     {
-                        foreach (var item in orders.OrderItems)
+                        foreach (var item in order.OrderItems)
                         {
                             var orderItem = new OrderItems
                             {
-                                OrderId = order.Id,
+                                OrderId = orderData.Id,
                                 ProductId = item.ProductId,
                                 Quantity = item.Quantity,
                                 UnitPrice = item.UnitPrice??0

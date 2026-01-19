@@ -1,11 +1,13 @@
 ﻿using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Model;
+using Logistics;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using WALMS.API.Common;
 
 namespace AlphaLogistics.API.Services
 {
@@ -20,6 +22,14 @@ namespace AlphaLogistics.API.Services
             _context = context;
             _environment = environment;
             _httpContextAccessor = httpContextAccessor;
+        }
+
+        public List<PradeshMaster> GetActivePradeshList()
+        { 
+            var pradeshList=_context.PradeshMasters             
+                .OrderBy(p => p.Name)
+                .ToList();
+            return pradeshList;
         }
 
         // Helper method to hash password
@@ -73,12 +83,39 @@ namespace AlphaLogistics.API.Services
             if (await _context.UserMasters.AnyAsync(u => u.Email == registerDto.Email))
                 throw new Exception("Email already exists");
 
-            var role = await _context.RoleMasters
-                .FirstOrDefaultAsync(r => r.Id == 5 && r.IsActive);
-            if (role == null)
-                throw new Exception("Invalid role");
 
-           /* string? profileImageUrl = null;
+            string? profileImageUrl = null;
+            if (registerDto.ProfileImage != null)
+            {
+                profileImageUrl = await UploadProfileImage(registerDto.ProfileImage);
+            }
+
+            var user = new UserMaster
+            {
+                UserName = registerDto.UserName,
+                Email = registerDto.Email,
+                Password = EncriptorUtility.Encrypt(registerDto.Password,false),
+                Phone = registerDto.Phone,
+                //Address = registerDto.Address,
+                RoleId = registerDto.RoleId,
+                ProfileImage = profileImageUrl,
+                CreatedAt = DateTime.UtcNow,
+                IsActive = true,
+                //RoleMaster = role
+            };
+
+            _context.UserMasters.Add(user);
+            await _context.SaveChangesAsync();
+
+            return ConvertToUserResponseDto(user);
+        }
+        public async Task<bool> RegisterCustomerAsync(CustomerCreateDTO registerDto)
+        {
+
+            if (await _context.UserMasters.AnyAsync(u => u.Phone == registerDto.Phone))
+                throw new Exception("Phone already exists");
+
+          /*  string? profileImageUrl = null;
             if (registerDto.ProfileImage != null)
             {
                 profileImageUrl = await UploadProfileImage(registerDto.ProfileImage);
@@ -86,22 +123,46 @@ namespace AlphaLogistics.API.Services
 
             var user = new UserMaster
             {
-                UserName = registerDto.UserName,
+                UserName = registerDto.Name,
                 Email = registerDto.Email,
-                Password = HashPassword(registerDto.Password),
+                Password = EncriptorUtility.Encrypt(registerDto.Password, false),
                 Phone = registerDto.Phone,
+                PradeshId=registerDto.PradeshId,
+                Address=registerDto.Address,
                 //Address = registerDto.Address,
-                RoleId = 5,
-               // ProfileImage = profileImageUrl,
+                RoleId = AppConstants.UserRole.Customer,
+                //ProfileImage = profileImageUrl,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true,
-                RoleMaster = role
+                //RoleMaster = role
             };
 
             _context.UserMasters.Add(user);
             await _context.SaveChangesAsync();
 
-            return ConvertToUserResponseDto(user);
+            return false;
+        }
+        public async Task<bool> UpdateCustomerAsync(CustomerCreateDTO registerDto)
+        {
+
+            if (await _context.UserMasters.AnyAsync(u => u.Phone == registerDto.Phone && u.Id != registerDto.Id))
+                throw new Exception("Phone already exists");
+
+            var existingCustomer= await _context.UserMasters.FirstOrDefaultAsync(u => u.Id == registerDto.Id && u.RoleId==AppConstants.UserRole.Customer);
+
+            if (existingCustomer == null) return false;
+            existingCustomer.Address=registerDto.Address;
+            existingCustomer.Phone=registerDto.Phone;
+            existingCustomer.PradeshId= registerDto.PradeshId;
+            existingCustomer.Email=registerDto.Email;
+            existingCustomer.Password= EncriptorUtility.Encrypt(registerDto.Password, false);
+            existingCustomer.IsActive = registerDto.IsActive;
+
+           
+            _context.UserMasters.Update(existingCustomer);
+            await _context.SaveChangesAsync();
+
+            return true;
         }
 
         public async Task<VendorResponseDto> RegisterVendorAsync(RegisterVendorDto registerDto, HttpContext httpContext)
@@ -116,11 +177,11 @@ namespace AlphaLogistics.API.Services
             if (await _context.VendorMasters.AnyAsync(v => v.PAN == registerDto.PAN))
                 throw new Exception("PAN number already registered");
 
-            var vendorRole = await _context.RoleMasters
+            /*var vendorRole = await _context.RoleMasters
                 .FirstOrDefaultAsync(r => r.Name == "Vendor" && r.IsActive);
 
             if (vendorRole == null)
-                throw new Exception("Vendor role not found");
+                throw new Exception("Vendor role not found");*/
 
            
             int? createdByUserId = null;
@@ -167,7 +228,7 @@ namespace AlphaLogistics.API.Services
                 Password = HashPassword(registerDto.Password),
                 Phone = registerDto.Phone,
                 Address = registerDto.Address,
-                RoleId = vendorRole.Id,
+                RoleId = AppConstants.UserRole.Vendor,
                 ProfileImage = profileImageUrl,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true
@@ -281,7 +342,7 @@ namespace AlphaLogistics.API.Services
                 Phone = user.Phone,
                 Address = user.Address,
                 ProfileImage = user.ProfileImage,
-                Role = vendorRole.Name
+               // Role = vendorRole.Name
             };
         }
 
@@ -297,8 +358,8 @@ namespace AlphaLogistics.API.Services
                 throw new Exception("Not an approved Vendor");
             }
 
-
-            if (user == null || user.Password != HashPassword(loginDto.Password))
+            var encryptedPassword = EncriptorUtility.Encrypt(loginDto.Password,false);
+            if (user == null || user.Password != encryptedPassword)
                 throw new Exception("Invalid email or password");
 
             var claims = new List<Claim>
@@ -340,17 +401,16 @@ namespace AlphaLogistics.API.Services
             return ConvertToUserResponseDto(user);
         }
 
-        public async Task<List<UserResponseDto>> GetAllUsersAsync(int? roleId = null)
+        public async Task<List<UserResponseDto>> GetAllUsersAsync()
         {
             var query = _context.UserMasters
                 .Include(u => u.RoleMaster)
                 .Include(u => u.VendorMaster)
                 .AsQueryable();
 
-            if (roleId.HasValue)
-            {
-                query = query.Where(u => u.RoleId == roleId.Value);
-            }
+
+                query = query.Where(u => u.RoleId != AppConstants.UserRole.Customer && u.RoleId != AppConstants.UserRole.Vendor);
+
 
             var users = await query
                 .OrderByDescending(u => u.CreatedAt)
@@ -358,12 +418,53 @@ namespace AlphaLogistics.API.Services
 
             return users.Select(ConvertToUserResponseDto).ToList();
         }
+        public async Task<List<dynamic>> GetAllCustomerAsync()
+        {
+           var users = await _context.UserMasters
+                .Include(u => u.RoleMaster)
+                .Where(u => u.RoleId == AppConstants.UserRole.Customer)
+                .OrderBy(u => u.UserName)
+                .ToListAsync();
+
+            var pradesh=_context.PradeshMasters.ToList();
+
+            var response = users.Select(x => (dynamic)new {
+            x.Id,
+            x.UserName,
+            x.Email,
+            x.Phone,
+            x.Address,
+             PradeshName=pradesh.FirstOrDefault(p=>p.Id==x.PradeshId)?.Name
+            }).ToList();
+
+            return response;
+        }
+
+        public async Task<dynamic> GetCustomerByIdAsync(int customerId)
+        {
+            var users =  _context.UserMasters
+                 .FirstOrDefault(u => u.Id == customerId);
+                
+            var pradesh = _context.PradeshMasters.ToList();
+
+            var response = (dynamic)new
+            {
+                users.Id,
+                users.UserName,
+                users.Email,
+                users.Phone,
+                users.Address,
+                PradeshName = pradesh.FirstOrDefault(p => p.Id == users.PradeshId)?.Name
+            };
+
+            return response;
+        }
 
         public async Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserDto updateDto)
         {
             var user = await _context.UserMasters
                 .Include(u => u.RoleMaster)
-                .FirstOrDefaultAsync(u => u.Id == id);
+                .FirstOrDefaultAsync(u => u.Id == id && u.RoleId!=AppConstants.UserRole.Customer && u.RoleId != AppConstants.UserRole.Vendor);
 
             if (user == null)
                 throw new Exception("User not found");
@@ -796,7 +897,7 @@ namespace AlphaLogistics.API.Services
                     .ThenInclude(u => u.RoleMaster)
                 .Include(v => v.Documents)
                 .Include(v => v.CreatedByUser) 
-                .Include(v => v.UpdatedByUser)
+                .Include(v => v.UpdatedByUser).Where(x=>x.UserMaster.RoleId==AppConstants.UserRole.Vendor)
                 .AsQueryable();
 
           
