@@ -726,5 +726,18 @@ namespace AlphaLogistics.API.Services
 
             return productDtos;
         }
+
+        public async Task<bool> BulkApproveProducts(List<int> producIds)
+        {
+            var products =await  _context.ProductMasters.Where(p => producIds.Contains(p.Id)).ToListAsync();
+            foreach (var product in products)
+            {
+                product.IsApproved = true;
+                product.LastUpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

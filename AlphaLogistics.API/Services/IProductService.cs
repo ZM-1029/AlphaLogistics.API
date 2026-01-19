@@ -5,6 +5,7 @@ namespace AlphaLogistics.API.Services
     public interface IProductService
     {
         // Product CRUD
+        Task<bool> BulkApproveProducts(List<int> producIds);
         Task<ProductDto> CreateProductAsync(int vendorId, CreateProductDto createDto, HttpContext httpContext);
         Task<ProductDto> GetProductByIdAsync(int productId);
         Task<ProductListResponseDto> GetAllProductsAsync(ProductQueryDto dto);

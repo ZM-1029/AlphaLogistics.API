@@ -21,6 +21,36 @@ namespace AlphaLogistics.API.Controllers
             _logger = logger;
         }
 
+        #region Product APIs
+
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> BulkProductApproval(BulkProductApprovalDto data)
+        {
+            if (data == null || !data.ProductIds.Any()) return ErrorResponse<string>("Invalid input");
+
+            try
+            {
+               var success= await _productService.BulkApproveProducts(data.ProductIds);
+                if (success)
+                {
+                    return SuccessResponse<string>("Products approved successfully");
+                }
+                else
+                    return ErrorResponse<string>("Failed to approve products");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in bulk product approval");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        public record BulkProductApprovalDto
+        {
+            public List<int> ProductIds { get; set; }
+        }
+
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> CreateProduct(int VendorId,[FromForm] CreateProductDto createDto)
@@ -227,6 +257,9 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
+        #endregion
+
+        #region Category/Subcategory APIs
         // Category Management Endpoints
         [HttpPost]
         [Authorize(Policy = "Admin")]
@@ -291,5 +324,7 @@ namespace AlphaLogistics.API.Controllers
                 return ErrorResponse<string>(ex.Message);
             }
         }
+
+        #endregion
     }
 }

@@ -18,6 +18,7 @@ namespace AlphaLogistics.API.Model
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsApproved { get; set; } = false;
         public ICollection<CartMaster>? CartMasters { get; set; }
         public VendorMaster? VendorMaster { get; set; }
         public ICollection<ProductImages>? ProductImages { get; set; }
