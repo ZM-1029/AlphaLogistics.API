@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using WALMS.API.Common;
 using WALMS.API.Controllers;
 
 namespace AlphaLogistics.API.Controllers
@@ -181,9 +182,45 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
+        [HttpPatch("{vendorId}")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> VendorApprovalUpdate(int vendorId, [FromBody] VendorApprovalRequestDto request)
+        {
+            try
+            {
+                var result = await _userService.ApproveOrRejectVendorAsync(
+                    vendorId,
+                    request.IsApproved,
+                    HttpContext
+                );
+
+                var response = new VendorApprovalResponseDto
+                {
+                    VendorId = result.VendorId,
+                    VendorName = result.VendorName,
+                    IsApproved = result.IsApproved,
+                    IsActive = result.IsActive,
+                    StatusMessage = request.IsApproved ? "Vendor approved successfully" : "Vendor rejected",
+                    ActionDate = DateTime.UtcNow,
+                    ActionByUserId = result.UpdatedBy
+                };
+
+                return Ok(new ApiResponse<VendorApprovalResponseDto>
+                {
+                    Success = true,
+                    Data = response,
+                    Message = response.StatusMessage
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating vendor approval status");
+                return BadRequest(new ApiResponse<string> { Success = false, Message = "Error updating vendor approval status" });
+            }
+        }
+
         [HttpPost]
-        //[Authorize(Policy = "Admin")]
-        [AllowAnonymous]
+        [Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetAllVendors([FromBody] VendorQueryDto query)
         {
             try

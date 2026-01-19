@@ -289,7 +289,14 @@ namespace AlphaLogistics.API.Services
         {
             var user = await _context.UserMasters
                 .Include(u => u.RoleMaster)
+                .Include(u => u.VendorMaster)
                 .FirstOrDefaultAsync(u => u.Email == loginDto.Email && u.IsActive);
+
+            if (user != null && user.VendorMaster?.IsApproved == false)
+            {
+                throw new Exception("Not Authorized User");
+            }
+
 
             if (user == null || user.Password != HashPassword(loginDto.Password))
                 throw new Exception("Invalid email or password");
@@ -569,6 +576,66 @@ namespace AlphaLogistics.API.Services
 
                 _context.DocumentMasters.RemoveRange(docsToDelete);
             }
+
+            await _context.SaveChangesAsync();
+
+            return await GetVendorByIdAsync(vendorId);
+        }
+
+        public async Task<VendorResponseDto> ApproveOrRejectVendorAsync(int vendorId, bool isApproved, HttpContext httpContext)
+        {
+            // Get the vendor with user information
+            var vendor = await _context.VendorMasters
+                .Include(v => v.UserMaster)
+                .FirstOrDefaultAsync(v => v.Id == vendorId);
+
+            if (vendor == null)
+                throw new Exception("Vendor not found");
+
+            int? updatedByUserId = null;
+            bool isAdminOrSuperAdmin = false;
+
+            try
+            {
+                var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int currentUserId))
+                {
+                    var currentUser = await _context.UserMasters
+                        .Include(u => u.RoleMaster)
+                        .FirstOrDefaultAsync(u => u.Id == currentUserId);
+
+                    if (currentUser != null && currentUser.RoleMaster != null)
+                    {
+                        var roleName = currentUser.RoleMaster.Name;
+                        if (roleName.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                            roleName.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            updatedByUserId = currentUserId;
+                            isAdminOrSuperAdmin = true;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking user role: {ex.Message}");
+            }
+
+            if (!isAdminOrSuperAdmin)
+                throw new UnauthorizedAccessException("Only Admin or SuperAdmin can approve/reject vendors");
+
+            vendor.IsApproved = isApproved;
+
+            if (isApproved && !vendor.IsActive)
+                vendor.IsActive = true;
+
+            if (!isApproved)
+            {
+                vendor.IsActive = false; 
+            }
+
+            vendor.LastUpdatedAt = DateTime.UtcNow;
+            vendor.UpdatedBy = updatedByUserId;
 
             await _context.SaveChangesAsync();
 
