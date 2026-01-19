@@ -191,8 +191,11 @@ namespace AlphaLogistics.API.Controllers
                 var result = await _userService.ApproveOrRejectVendorAsync(
                     vendorId,
                     request.IsApproved,
-                    HttpContext
+                    HttpContext,
+                    request.Reason
                 );
+
+               
 
                 var response = new VendorApprovalResponseDto
                 {

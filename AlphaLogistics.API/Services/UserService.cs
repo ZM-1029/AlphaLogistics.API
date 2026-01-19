@@ -294,7 +294,7 @@ namespace AlphaLogistics.API.Services
 
             if (user != null && user.VendorMaster?.IsApproved == false)
             {
-                throw new Exception("Not Authorized User");
+                throw new Exception("Not an approved Vendor");
             }
 
 
@@ -582,7 +582,7 @@ namespace AlphaLogistics.API.Services
             return await GetVendorByIdAsync(vendorId);
         }
 
-        public async Task<VendorResponseDto> ApproveOrRejectVendorAsync(int vendorId, bool isApproved, HttpContext httpContext)
+        public async Task<VendorResponseDto> ApproveOrRejectVendorAsync(int vendorId, bool isApproved, HttpContext httpContext,string? reason)
         {
             // Get the vendor with user information
             var vendor = await _context.VendorMasters
@@ -625,7 +625,7 @@ namespace AlphaLogistics.API.Services
                 throw new UnauthorizedAccessException("Only Admin or SuperAdmin can approve/reject vendors");
 
             vendor.IsApproved = isApproved;
-
+            vendor.Reason = reason;
             if (isApproved && !vendor.IsActive)
                 vendor.IsActive = true;
 
@@ -638,6 +638,79 @@ namespace AlphaLogistics.API.Services
             vendor.UpdatedBy = updatedByUserId;
 
             await _context.SaveChangesAsync();
+
+            var user=_context.UserMasters.FirstOrDefault(u=>u.Id==vendor.UserId);
+
+            if (isApproved)
+            {
+                string approvalSubject = "Congratulations! Your Vendor Application Has Been Approved";
+                string approvalBody = @$"
+                    <html>
+                    <body style='font-family: Arial, sans-serif; line-height: 1.6;'>
+                        <h2 style='color: #2E7D32;'>Vendor Application Approved!</h2>
+                        <p>Dear {user?.UserName ?? "Vendor"},</p>
+                        <p>We are pleased to inform you that your vendor application has been <strong>approved</strong>.</p>
+            
+                        <div style='background-color: #E8F5E9; padding: 15px; border-left: 4px solid #2E7D32; margin: 20px 0;'>
+                            <h3>Next Steps:</h3>
+                            <ul>
+                                <li>You can now log in to your vendor portal</li>
+                                <li>Access your vendor dashboard to manage your products/services</li>
+                                <li>Review our vendor guidelines and policies</li>
+                            </ul>
+                        </div>
+            
+                        <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+            
+                        <p>Welcome aboard!</p>
+                        <p><strong>The Vendor Management Team</strong></p>
+            
+                        <hr style='margin: 20px 0; border: none; border-top: 1px solid #ddd;'>
+                        <p style='font-size: 12px; color: #666;'>
+                            This is an automated message. Please do not reply to this email.
+                        </p>
+                    </body>
+                    </html>";
+
+                await EmailService.SendEmailAsync(user?.Email, approvalSubject, approvalBody);
+            }
+            else
+            {
+                string rejectionSubject = "Update on Your Vendor Application";
+                string rejectionBody = @$"
+                    <html>
+                    <body style='font-family: Arial, sans-serif; line-height: 1.6;'>
+                        <h2 style='color: #C62828;'>Vendor Application Status Update</h2>
+                        <p>Dear {user?.UserName ?? "Vendor"},</p>
+                        <p>Thank you for your interest in becoming a vendor with us. After careful review, we regret to inform you that your application has <strong>not been approved</strong> at this time.</p>
+            
+                        <div style='background-color: #FFEBEE; padding: 15px; border-left: 4px solid #C62828; margin: 20px 0;'>
+                            <h3>Possible Reasons:</h3>
+                            <ul>
+                                <li>Incomplete documentation or information</li>
+                                <li>Currently not accepting vendors in your category</li>
+                                <li>Business requirements not fully met</li>
+                            </ul>
+                        </div>
+            
+                        <p><strong>Note:</strong> This decision is based on our current business needs and requirements. You are welcome to reapply in the future when you feel the circumstances have changed.</p>
+            
+                        <p>If you would like feedback on your application or have questions about our vendor requirements, please contact our vendor relations team.</p>
+            
+                        <p>We appreciate your interest and wish you success in your business endeavors.</p>
+            
+                        <p><strong>The Vendor Management Team</strong></p>
+            
+                        <hr style='margin: 20px 0; border: none; border-top: 1px solid #ddd;'>
+                        <p style='font-size: 12px; color: #666;'>
+                            This is an automated message. Please do not reply to this email.
+                        </p>
+                    </body>
+                    </html>";
+
+                await EmailService.SendEmailAsync(user?.Email, rejectionSubject, rejectionBody);
+            }
+
 
             return await GetVendorByIdAsync(vendorId);
         }

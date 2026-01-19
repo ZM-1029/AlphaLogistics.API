@@ -13,6 +13,7 @@ namespace AlphaLogistics.API.Model
 
            
             public string VendorName { get; set; } 
+            public string? Reason { get; set; } 
             public string ContactPerson { get; set; }
 
            
