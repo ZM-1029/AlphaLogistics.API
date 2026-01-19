@@ -20,6 +20,7 @@ namespace AlphaLogistics.API.Services
         Task<VendorListResponseDto> GetAllVendorsAsync(VendorQueryDto dto);
         Task<VendorResponseDto> GetVendorByIdAsync(int vendorId);
         Task<VendorResponseDto> UpdateVendorAsync(int vendorId, UpdateVendorDto updateDto, HttpContext httpContext);
+        Task<VendorResponseDto> ApproveOrRejectVendorAsync(int vendorId, bool isApproved, HttpContext httpContext);
         Task<bool> DeleteVendorAsync(int vendorId);
         Task<bool> RestoreVendorAsync(int vendorId);
         // Vendor documents
