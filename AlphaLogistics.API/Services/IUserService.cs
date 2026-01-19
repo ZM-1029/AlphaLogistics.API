@@ -13,7 +13,7 @@ namespace AlphaLogistics.API.Services
         public List<PradeshMaster> GetActivePradeshList();
         Task<UserResponseDto> RegisterUserAsync(RegisterUserDto registerDto);
         Task<UserResponseDto> GetUserByIdAsync(int id);
-        Task<List<UserResponseDto>> GetAllUsersAsync(int? roleId = null);
+        Task<List<UserResponseDto>> GetAllUsersAsync();
         Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserDto updateDto);
         Task<UserResponseDto> GetCurrentUserAsync(HttpContext httpContext);
 
