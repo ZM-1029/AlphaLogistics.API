@@ -225,7 +225,7 @@ namespace AlphaLogistics.API.Services
             {
                 UserName = registerDto.VendorName,
                 Email = registerDto.Email,
-                Password = HashPassword(registerDto.Password),
+                Password = EncriptorUtility.Encrypt(registerDto.Password,false),
                 Phone = registerDto.Phone,
                 Address = registerDto.Address,
                 RoleId = AppConstants.UserRole.Vendor,
@@ -1194,6 +1194,11 @@ namespace AlphaLogistics.API.Services
             }
 
             return $"/uploads/{folder}/{uniqueFileName}";
+        }
+
+        public async Task<VendorMaster?> GetVendorByUserId(int userId)
+        {
+            return await _context.VendorMasters.FirstOrDefaultAsync(v => v.UserId == userId);
         }
     }
 }

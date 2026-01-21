@@ -14,6 +14,7 @@ namespace AlphaLogistics.API.Services
         Task<UserResponseDto> RegisterUserAsync(RegisterUserDto registerDto);
         Task<UserResponseDto> GetUserByIdAsync(int id);
         Task<List<UserResponseDto>> GetAllUsersAsync();
+        Task<VendorMaster?> GetVendorByUserId(int userId);
         Task<UserResponseDto> UpdateUserAsync(int id, UpdateUserDto updateDto);
         Task<UserResponseDto> GetCurrentUserAsync(HttpContext httpContext);
 

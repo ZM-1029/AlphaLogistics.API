@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Data;
 using System.Threading.Tasks;
 using WALMS.API.Common;
 using WALMS.API.Controllers;
@@ -155,7 +156,7 @@ namespace AlphaLogistics.API.Controllers
 
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> GetAllUsers([FromQuery] int? roleId = null)
+       /* public async Task<IActionResult> GetAllUsers([FromQuery] int? roleId = null)
         {
             try
             {
@@ -167,8 +168,20 @@ namespace AlphaLogistics.API.Controllers
                 _logger.LogError(ex, "Error getting users");
                 return ErrorResponse<string>(ex.Message);
             }
+        }*/
+        public async Task<IActionResult> GetAllUsers()
+        {
+            try
+            {
+                var users = await _userService.GetAllUsersAsync();
+                return SuccessResponse(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting users");
+                return ErrorResponse<string>(ex.Message);
+            }
         }
-
         [HttpPut("{id}")]
         [Authorize]
         public async Task<IActionResult> UpdateUser(int id, [FromForm] UpdateUserDto updateDto)
@@ -208,7 +221,16 @@ namespace AlphaLogistics.API.Controllers
             try
             {
                 var user = await _userService.GetCurrentUserAsync(HttpContext);
-                return SuccessResponse(user);
+                var vendor= await _userService.GetVendorByUserId(user.Id);
+                var response = new {
+                    Id=user.Id,
+                    Role= user.Role,
+                    UserName = user.UserName,
+                    Email= user.Email,
+                    Phone=user.Phone,
+                    VendorId= vendor?.Id??0
+                };
+                return SuccessResponse(response);
             }
             catch (Exception ex)
             {
