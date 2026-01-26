@@ -228,7 +228,8 @@ namespace AlphaLogistics.API.Controllers
                     UserName = user.UserName,
                     Email= user.Email,
                     Phone=user.Phone,
-                    VendorId= vendor?.Id??0
+                    ProfileImage=user.ProfileImage,
+                    VendorId = vendor?.Id??0
                 };
                 return SuccessResponse(response);
             }
@@ -285,7 +286,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpPatch("{vendorId}")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]   
         public async Task<IActionResult> VendorApprovalUpdate(int vendorId, [FromBody] VendorApprovalRequestDto request)
         {
             try

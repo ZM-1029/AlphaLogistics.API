@@ -63,7 +63,7 @@ namespace AlphaLogistics.API.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 _logger.LogWarning(ex, "Unauthorized product creation attempt");
-                return UnauthorizedResponse<string>(ex.Message);
+                return ErrorResponse<string>("Error while creating the product");
             }
             catch (Exception ex)
             {
@@ -316,6 +316,22 @@ namespace AlphaLogistics.API.Controllers
             try
             {
                 var subCategories = await _productService.GetAllSubCategoriesAsync();
+                return SuccessResponse(subCategories);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting subcategories");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllSubCategoriesByCategoryId(int categoryId)
+        {
+            try
+            {
+                var subCategories = (await _productService.GetAllSubCategoriesAsync()).Where(x=>x.CategoryId==categoryId);
                 return SuccessResponse(subCategories);
             }
             catch (Exception ex)

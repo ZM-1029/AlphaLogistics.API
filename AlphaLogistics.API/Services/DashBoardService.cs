@@ -158,9 +158,11 @@ namespace AlphaLogistics.API.Services
         {
             try
             {
-                var year=DateTime.UtcNow.Year;
-                DateTime startDate = new DateTime(year, 1, 1);
-                DateTime endDate = new DateTime(year, 12, 31).AddDays(1).AddTicks(-1);
+                var year = DateTime.UtcNow.Year;
+
+                DateTime startDate = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                DateTime endDate = new DateTime(year + 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
 
                 if (vendorId > 0)
                 {

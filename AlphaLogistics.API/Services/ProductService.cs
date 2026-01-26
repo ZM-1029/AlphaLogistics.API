@@ -69,7 +69,7 @@ namespace AlphaLogistics.API.Services
         public async Task<ProductDto> CreateProductAsync(int VendorId, CreateProductDto createDto, HttpContext httpContext)
         {
             // Get current user from context
-            var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+          /*  var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
                 throw new UnauthorizedAccessException("User not authenticated");
 
@@ -79,7 +79,7 @@ namespace AlphaLogistics.API.Services
                 .FirstOrDefaultAsync(u => u.Id == currentUserId);
 
             if (currentUser == null)
-                throw new UnauthorizedAccessException("User not found");
+                throw new UnauthorizedAccessException("User not found");*/
 
          
             
@@ -91,7 +91,7 @@ namespace AlphaLogistics.API.Services
 
                
            
-            if (currentUser.RoleMaster.Name == "Admin" || currentUser.RoleMaster.Name == "SuperAdmin")
+           /* if (currentUser.RoleMaster.Name == "Admin" || currentUser.RoleMaster.Name == "SuperAdmin")
             {
 
                 if (createDto.VendorId <= 0)
@@ -101,7 +101,7 @@ namespace AlphaLogistics.API.Services
             else
             {
                 throw new UnauthorizedAccessException("Unauthorized role for product creation");
-            }
+            }*/
 
             var subCategory = await _context.SubCategoryMasters
                 .Include(sc => sc.CategoryMaster)
@@ -192,23 +192,23 @@ namespace AlphaLogistics.API.Services
                 query = query.Where(p => p.IsActive == dto.isActive.Value);
             }
 
-            if (dto.categoryId.HasValue)
+            if (dto.categoryId.HasValue && dto.categoryId>0)
             {
                 query = query.Where(p => p.SubCategoryMaster != null &&
                                         p.SubCategoryMaster.CategoryId == dto.categoryId.Value);
             }
 
-            if (dto.subCategoryId.HasValue)
+            if (dto.subCategoryId.HasValue && dto.subCategoryId>0)
             {
                 query = query.Where(p => p.SubCategoryId == dto.subCategoryId.Value);
             }
 
-            if (dto.minPrice.HasValue)
+            if (dto.minPrice.HasValue && dto.minPrice > 0)
             {
                 query = query.Where(p => p.Price >= dto.minPrice.Value);
             }
 
-            if (dto.maxPrice.HasValue)
+            if (dto.maxPrice.HasValue && dto.maxPrice > 0)
             {
                 query = query.Where(p => p.Price <= dto.maxPrice.Value);
             }

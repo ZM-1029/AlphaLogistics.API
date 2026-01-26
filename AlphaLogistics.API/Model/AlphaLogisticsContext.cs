@@ -6,7 +6,7 @@ namespace AlphaLogistics.API.Model
     public class AlphaLogisticsContext: DbContext
     {
         public virtual DbSet<ProductMaster> ProductMasters { get; set; }
-
+        public virtual DbSet<OrderStatusHistory> OrderStatusHistory { get; set; }
         public virtual DbSet<OrderMaster> OrderMasters { get; set; }
 
         public virtual DbSet<CartMaster> CartMasters { get; set; }

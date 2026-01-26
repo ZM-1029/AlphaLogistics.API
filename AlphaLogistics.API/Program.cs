@@ -24,7 +24,7 @@ builder.Services.AddDbContext<AlphaLogisticsContext>(options =>
 
 
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("SmtpOptions"));
-
+builder.Services.AddScoped<IDashBoardService, DashBoardService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -82,6 +82,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 
 // Add CORS 

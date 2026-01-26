@@ -1,6 +1,7 @@
 ﻿using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Model;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Serilog;
 using System.Transactions;
 using WALMS.API.Common;
@@ -11,11 +12,13 @@ namespace AlphaLogistics.API.Services
     {
         private readonly IUserContext _userContext;
         private readonly AlphaLogisticsContext _context;
+        private readonly IConfiguration _configuration;
 
-        public OrderService(IUserContext userContext,AlphaLogisticsContext context)
+        public OrderService(IUserContext userContext,AlphaLogisticsContext context,IConfiguration config)
         {
             _userContext = userContext;
             _context = context;
+            _configuration = config;
         }     
 
         public Task<bool> ChangeStatus(int orderId, int statusId)
@@ -24,8 +27,30 @@ namespace AlphaLogistics.API.Services
             if (existingOrder != null)
             {
                 existingOrder.Status = statusId;
+               // _context.SaveChanges();
+
+                var existingStatus = _context.OrderStatusHistory
+                    .FirstOrDefault(osh => osh.OrderId == orderId && osh.IsActive == true);
+
+                if (existingStatus != null)
+                { 
+                    existingStatus.IsActive = false;
+                    //_context.SaveChanges();
+                }
+
+                // make entry in OrderStatus History
+                var orderstatus= new OrderStatusHistory
+                {
+                    OrderId = orderId,
+                    StatusId = statusId,
+                    CreatedOn = DateTime.UtcNow,
+                };
+
+                _context.OrderStatusHistory.Add(orderstatus);
                 _context.SaveChanges();
+
                 return Task.FromResult(true);
+
             }
             return Task.FromResult(false);
         }
@@ -86,11 +111,25 @@ namespace AlphaLogistics.API.Services
                 var orders = await _context.OrderMasters.Where(x=>x.UserId==userId).ToListAsync();
                 if (!orders.Any()) return null;
 
+                var orderStatusSection = _configuration
+               .GetSection("OrderStatus")
+               .Get<Dictionary<string, string>>();
+
+                var statusList = orderStatusSection?
+                    .Select(x => new
+                    {
+                        Id = int.Parse(x.Value),
+                        Name = x.Key,
+                        // Label = FormatLabel(x.Key)
+                    })
+                    .OrderBy(x => x.Id)
+                    .ToList();
+
                 var response = orders.Select(x => (dynamic)new { 
                 x.Id,
                 x.OrderNumber,
                 x.OrderDate,
-                x.Status,
+                Status= statusList?.FirstOrDefault(s=>s.Id==x.Status)?.Name,
                 x.TotalAmount,
                 }).OrderBy(x=>x.OrderDate).ToList();
 
@@ -102,13 +141,15 @@ namespace AlphaLogistics.API.Services
                 return null;
             }
         }
-        public Task<bool> PlaceOrder(OrderDTO order)
+        public Task<int> PlaceOrder(OrderDTO order)
         {
             try
             {
                 var orderNumber = $"AL-{DateTime.Now.Ticks}";
                 var orderTotal = order.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
                 var userId = _userContext.UserId;
+                if (userId <= 0) return Task.FromResult(0);
+                Log.Error("Order Service/PlaceOrder: UserId is zero");
                 var orderData = new OrderMaster
                 {
                     OrderNumber = orderNumber,
@@ -117,6 +158,7 @@ namespace AlphaLogistics.API.Services
                     TotalAmount = orderTotal??0 + order.DeliveryCharge??0,
                     Status = AppConstants.OrderStatus.Pending,
                     OrderDate = DateTime.UtcNow,
+                    IsPlacedByAdmin=order.IsPlacedByAdmin,
                 };
                 using (var transactionScope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
                 {
@@ -138,16 +180,17 @@ namespace AlphaLogistics.API.Services
 
                         _context.SaveChanges();
 
-                        return Task.FromResult(true);
+                        return Task.FromResult(orderData.Id);
                     }
                     transactionScope.Complete();
                 }
 
-                return Task.FromResult(false);
+                return Task.FromResult(0);
             }
             catch (Exception ex)
-            {             
-                return Task.FromResult(false);
+            {
+                Log.Error($"Order Service/PlaceOrder: {ex.Message}");
+                return Task.FromResult(0);
             }
         }
     }
