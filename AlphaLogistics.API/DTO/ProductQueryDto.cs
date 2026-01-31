@@ -8,7 +8,7 @@ namespace AlphaLogistics.API.DTO
 
            public int pageSize { get; set; } = 10;
 
-           public bool? isActive { get; set; } = null;
+          // public bool? isActive { get; set; } = null;
 
            public int? categoryId { get; set; } = null;
 

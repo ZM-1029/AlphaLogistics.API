@@ -162,6 +162,7 @@ namespace AlphaLogistics.API.Services
                 .Include(p => p.VendorMaster)
                 .Include(p => p.SubCategoryMaster)
                     .ThenInclude(sc => sc.CategoryMaster)
+                    .Include(p=>p.ProductImages)
                 .FirstOrDefaultAsync(p => p.Id == productId);
 
             if (product == null)
@@ -187,10 +188,10 @@ namespace AlphaLogistics.API.Services
                 .AsQueryable();
 
             // Apply filters
-            if (dto.isActive.HasValue)
+            /*if (dto.isActive!=null && dto.isActive.HasValue)
             {
                 query = query.Where(p => p.IsActive == dto.isActive.Value);
-            }
+            }*/
 
             if (dto.categoryId.HasValue && dto.categoryId>0)
             {

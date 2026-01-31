@@ -901,10 +901,10 @@ namespace AlphaLogistics.API.Services
                 .AsQueryable();
 
           
-            if (dto.IsActive.HasValue)
+            /*if (dto.IsActive.HasValue)
             {
                 query = query.Where(v => v.IsActive == dto.IsActive.Value);
-            }
+            }*/
 
             if (dto.IsApproved.HasValue)
             {

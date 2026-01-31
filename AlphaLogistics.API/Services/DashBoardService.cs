@@ -19,48 +19,42 @@ namespace AlphaLogistics.API.Services
             {
                 if (vendorId > 0)
                 {
-                    // VENDOR-SPECIFIC LOGIC - Optimized
-                    var vendorProductIds = await _context.ProductMasters
+                    var vendorProductIdsQuery = _context.ProductMasters
                         .Where(x => x.VendorId == vendorId)
-                        .Select(x => x.Id)
-                        .ToListAsync();
+                        .Select(x => x.Id);
 
-                    // Get all order items for vendor's products in one query
                     var orderItemsQuery = _context.OrderItems
-                        .Where(x => vendorProductIds.Contains(x.ProductId));
+                        .Where(x => vendorProductIdsQuery.Contains(x.ProductId));
 
-                    var orderItems = await orderItemsQuery.ToListAsync();
+                    var orderIdsQuery = orderItemsQuery
+                        .Select(x => x.OrderId)
+                        .Distinct();
 
-                    var orderIds = orderItems.Select(x => x.OrderId).Distinct().ToList();
+                    var validOrdersQuery = _context.OrderMasters
+                        .Where(x => orderIdsQuery.Contains(x.Id) &&
+                                    x.Status != AppConstants.OrderStatus.Cancelled &&
+                                    x.Status != AppConstants.OrderStatus.Refunded);
 
-                    // Get valid (non-cancelled/refunded) orders
-                    var validOrders = await _context.OrderMasters
-                        .Where(x => orderIds.Contains(x.Id) &&
-                                   x.Status != AppConstants.OrderStatus.Cancelled &&
-                                   x.Status != AppConstants.OrderStatus.Refunded)
-                        .ToListAsync();
+                    var validOrderItemsQuery = orderItemsQuery
+                        .Where(x => validOrdersQuery.Select(v => v.Id).Contains(x.OrderId));
 
-                    var validOrderIds = validOrders.Select(x => x.Id).ToList();
-                    var validOrderItems = orderItems
-                        .Where(x => validOrderIds.Contains(x.OrderId))
-                        .ToList();
+                    var totalRevenue = await validOrderItemsQuery
+                        .SumAsync(x => x.UnitPrice * x.Quantity);
 
-                    // Calculate metrics
-                    var totalRevenue = validOrderItems.Sum(x => x.UnitPrice * x.Quantity);
-                    var totalOrders = orderIds.Count;
-                    var deliveredOrders = validOrders.Count;
+                    var totalOrders = await orderIdsQuery.CountAsync();
+                    var deliveredOrders = await validOrdersQuery.CountAsync();
                     var cancelOrRefundedOrders = totalOrders - deliveredOrders;
 
-                    // Optimized order response query - single database query
                     var orderResponse = await (
                         from oi in _context.OrderItems
                         join p in _context.ProductMasters on oi.ProductId equals p.Id
-                        join pi in _context.ProductImages on p.Id equals pi.ProductId
                         join sc in _context.SubCategoryMasters on p.SubCategoryId equals sc.Id
                         join c in _context.CategoryMasters on sc.CategoryId equals c.Id
                         join om in _context.OrderMasters on oi.OrderId equals om.Id
-                        where validOrderIds.Contains(om.Id) &&
-                              vendorProductIds.Contains(p.Id)
+                        join pi in _context.ProductImages on p.Id equals pi.ProductId into imageGroup
+                        where p.VendorId == vendorId &&
+                              om.Status != AppConstants.OrderStatus.Cancelled &&
+                              om.Status != AppConstants.OrderStatus.Refunded
                         select new
                         {
                             om.Id,
@@ -68,13 +62,13 @@ namespace AlphaLogistics.API.Services
                             om.TotalAmount,
                             om.Status,
                             om.OrderDate,
-                            ProductImage = pi.ImageUrl,
                             ProductName = p.ProductName,
-                            Category = c.Name
+                            Category = c.Name,
+                            ProductImages = imageGroup.Select(img => img.ImageUrl).ToList()
                         }
-                    ).Distinct()
-                     .OrderBy(x => x.OrderDate)
-                     .ToListAsync();
+                    )
+                    .OrderBy(x => x.OrderDate)
+                    .ToListAsync();
 
                     return new
                     {
@@ -82,45 +76,32 @@ namespace AlphaLogistics.API.Services
                         TotalOrders = totalOrders,
                         DeliveredOrders = deliveredOrders,
                         CancelOrRefundedOrders = cancelOrRefundedOrders,
-                        VendorCount = 1, // Since it's vendor-specific
+                        VendorCount = 1,
                         OrderList = orderResponse
                     };
                 }
                 else
                 {
-                    // ALL VENDORS LOGIC - Optimized
-
-                    // Get valid orders in one query
-                    var validOrders = await _context.OrderMasters
+                    var validOrdersQuery = _context.OrderMasters
                         .Where(x => x.Status != AppConstants.OrderStatus.Cancelled &&
-                                   x.Status != AppConstants.OrderStatus.Refunded)
-                        .ToListAsync();
+                                    x.Status != AppConstants.OrderStatus.Refunded);
 
-                    // Calculate metrics in parallel
-                    var totalRevenueTask = Task.FromResult(validOrders.Sum(x => x.TotalAmount));
-                    var deliveredOrdersTask = Task.FromResult(validOrders.Count);
-                    var totalOrdersTask = _context.OrderMasters.CountAsync();
-                    var vendorCountTask = _context.VendorMasters.CountAsync();
-
-                    await Task.WhenAll(totalRevenueTask, deliveredOrdersTask, totalOrdersTask, vendorCountTask);
-
-                    var totalRevenue = await totalRevenueTask;
-                    var deliveredOrders = await deliveredOrdersTask;
-                    var totalOrders = await totalOrdersTask;
-                    var vendorCount = await vendorCountTask;
+                    // ✅ Run sequentially instead of parallel
+                    var totalRevenue = await validOrdersQuery.SumAsync(x => x.TotalAmount);
+                    var deliveredOrders = await validOrdersQuery.CountAsync();
+                    var totalOrders = await _context.OrderMasters.CountAsync();
+                    var vendorCount = await _context.VendorMasters.CountAsync();
                     var cancelOrRefundedOrders = totalOrders - deliveredOrders;
-
-                    // Optimized order response query - single database query
-                    var validOrderIds = validOrders.Select(x => x.Id).ToList();
 
                     var orderResponse = await (
                         from o in _context.OrderMasters
+                        where o.Status != AppConstants.OrderStatus.Cancelled &&
+                              o.Status != AppConstants.OrderStatus.Refunded
                         join oi in _context.OrderItems on o.Id equals oi.OrderId
                         join p in _context.ProductMasters on oi.ProductId equals p.Id
-                        join pi in _context.ProductImages on p.Id equals pi.ProductId
                         join sc in _context.SubCategoryMasters on p.SubCategoryId equals sc.Id
                         join c in _context.CategoryMasters on sc.CategoryId equals c.Id
-                        where validOrderIds.Contains(o.Id)
+                        join pi in _context.ProductImages on p.Id equals pi.ProductId into imageGroup
                         select new
                         {
                             o.Id,
@@ -128,13 +109,13 @@ namespace AlphaLogistics.API.Services
                             o.TotalAmount,
                             o.Status,
                             o.OrderDate,
-                            ProductImage = pi.ImageUrl,
                             ProductName = p.ProductName,
-                            Category = c.Name
+                            Category = c.Name,
+                            ProductImages = imageGroup.Select(img => img.ImageUrl).ToList()
                         }
-                    ).Distinct()
-                     .OrderBy(x => x.OrderDate)
-                     .ToListAsync();
+                    )
+                    .OrderBy(x => x.OrderDate)
+                    .ToListAsync();
 
                     return new
                     {
