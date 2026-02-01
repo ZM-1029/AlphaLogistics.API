@@ -104,11 +104,17 @@ namespace AlphaLogistics.API.Services
             }
         }
 
-        public async Task<List<dynamic>?> GetOrderList(int userId)
+        public async Task<List<dynamic>?> GetOrderList(int? userId)
         {
             try 
             { 
-                var orders = await _context.OrderMasters.Where(x=>x.UserId==userId).ToListAsync();
+                var orders = await _context.OrderMasters.ToListAsync();
+
+                if (userId != null)
+                { 
+                    orders = orders.Where(x => x.UserId == userId).ToList();
+                }
+
                 if (!orders.Any()) return null;
 
                 var orderStatusSection = _configuration
@@ -130,6 +136,7 @@ namespace AlphaLogistics.API.Services
                 x.OrderNumber,
                 x.OrderDate,
                 Status= statusList?.FirstOrDefault(s=>s.Id==x.Status)?.Name,
+                x.IsPlacedByAdmin,
                 x.TotalAmount,
                 }).OrderBy(x=>x.OrderDate).ToList();
 
@@ -141,56 +148,59 @@ namespace AlphaLogistics.API.Services
                 return null;
             }
         }
-        public Task<int> PlaceOrder(OrderDTO order)
+        public async Task<int> PlaceOrder(OrderDTO order)
         {
             try
             {
                 var orderNumber = $"AL-{DateTime.Now.Ticks}";
-                var orderTotal = order.OrderItems.Sum(item => item.UnitPrice * item.Quantity);
+                var orderTotal = order.OrderItems.Sum(item => (item.UnitPrice ?? 0) * item.Quantity);
                 var userId = _userContext.UserId;
-                if (userId <= 0) return Task.FromResult(0);
-                Log.Error("Order Service/PlaceOrder: UserId is zero");
+
+                if (userId <= 0)
+                {
+                    Log.Error("Order Service/PlaceOrder: UserId is zero");
+                    return 0;
+                }
+
                 var orderData = new OrderMaster
                 {
                     OrderNumber = orderNumber,
                     UserId = (int)userId,
-                    DeliveryCharge = order.DeliveryCharge,
-                    TotalAmount = orderTotal??0 + order.DeliveryCharge??0,
+                    DeliveryCharge = order.DeliveryCharge ?? 0,
+                    TotalAmount = orderTotal + (order.DeliveryCharge ?? 0),
                     Status = AppConstants.OrderStatus.Pending,
                     OrderDate = DateTime.UtcNow,
-                    IsPlacedByAdmin=order.IsPlacedByAdmin,
+                    IsPlacedByAdmin = order.IsPlacedByAdmin,
                 };
-                using (var transactionScope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
+
+                using (var transaction = await _context.Database.BeginTransactionAsync())
                 {
-                    var isAdded = _context.OrderMasters.Add(orderData);
-                    if (isAdded != null)
+                    _context.OrderMasters.Add(orderData);
+                    await _context.SaveChangesAsync();
+
+                    foreach (var item in order.OrderItems)
                     {
-                        foreach (var item in order.OrderItems)
+                        var orderItem = new OrderItems
                         {
-                            var orderItem = new OrderItems
-                            {
-                                OrderId = orderData.Id,
-                                ProductId = item.ProductId,
-                                Quantity = item.Quantity,
-                                UnitPrice = item.UnitPrice??0
-                            };
+                            OrderId = orderData.Id,
+                            ProductId = item.ProductId,
+                            Quantity = item.Quantity,
+                            UnitPrice = item.UnitPrice ?? 0
+                        };
 
-                            _context.OrderItems.Add(orderItem);
-                        }
-
-                        _context.SaveChanges();
-
-                        return Task.FromResult(orderData.Id);
+                        _context.OrderItems.Add(orderItem);
                     }
-                    transactionScope.Complete();
-                }
 
-                return Task.FromResult(0);
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return orderData.Id;
+                }
             }
             catch (Exception ex)
             {
                 Log.Error($"Order Service/PlaceOrder: {ex.Message}");
-                return Task.FromResult(0);
+                return 0;
             }
         }
     }

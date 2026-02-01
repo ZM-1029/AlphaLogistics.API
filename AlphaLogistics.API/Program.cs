@@ -131,7 +131,12 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads/documents"
 });
 
-
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "uploads/products")),
+    RequestPath = "/uploads/products"
+});
 app.MapControllers();
 
 app.Run();

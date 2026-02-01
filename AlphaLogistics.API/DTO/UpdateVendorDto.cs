@@ -20,7 +20,6 @@
         public IFormFile? ProfileImage { get; set; }
 
         public List<DocumentDto>? DocumentsToAdd { get; set; }
-
         public List<int>? DocumentsToDelete { get; set; }
     }
 }

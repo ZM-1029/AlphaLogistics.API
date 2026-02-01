@@ -108,11 +108,12 @@ namespace AlphaLogistics.API.Controllers
 
         // GET: api/product/vendor/{vendorId}
         [HttpGet("{vendorId}")]
-        public async Task<IActionResult> GetProductsByVendor(int vendorId, [FromQuery] bool? isActive = null)
+        [AllowAnonymous]
+        public async Task<IActionResult> GetProductsByVendor(int vendorId)
         {
             try
             {
-                var products = await _productService.GetProductsByVendorAsync(vendorId, isActive);
+                var products = await _productService.GetProductsByVendorAsync(vendorId);
                 return SuccessResponse(products);
             }
             catch (Exception ex)
@@ -125,11 +126,11 @@ namespace AlphaLogistics.API.Controllers
         // GET: api/product/category/{subCategoryId}
         [HttpGet("{subCategoryId}")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetProductsBySubCategory(int subCategoryId, [FromQuery] bool? isActive = null)
+        public async Task<IActionResult> GetProductsBySubCategory(int subCategoryId)
         {
             try
             {
-                var products = await _productService.GetProductsBySubCategoryAsync(subCategoryId, isActive);
+                var products = await _productService.GetProductsBySubCategoryAsync(subCategoryId);
                 return SuccessResponse(products);
             }
             catch (Exception ex)
@@ -262,8 +263,8 @@ namespace AlphaLogistics.API.Controllers
         #region Category/Subcategory APIs
         // Category Management Endpoints
         [HttpPost]
-        [Authorize(Policy = "Admin")]
-        public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryDto createDto)
+        [Authorize]
+        public async Task<IActionResult> CreateCategory(CreateCategoryDto createDto)
         {
             try
             {
@@ -276,10 +277,25 @@ namespace AlphaLogistics.API.Controllers
                 return ErrorResponse<string>(ex.Message);
             }
         }
+        /*[HttpPost]
+        [Authorize]
+        public async Task<IActionResult> UpdateCategory(CreateCategoryDto createDto)
+        {
+            try
+            {
+                var category = await _productService.(createDto);
+                return CreatedResponse(category, "Category created successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating category");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }*/
 
         [HttpPost]
-        [Authorize(Policy = "Admin")]
-        public async Task<IActionResult> CreateSubCategory([FromBody] CreateSubCategoryDto createDto)
+        [Authorize]
+        public async Task<IActionResult> CreateSubCategory( CreateSubCategoryDto createDto)
         {
             try
             {
@@ -291,6 +307,28 @@ namespace AlphaLogistics.API.Controllers
                 _logger.LogError(ex, "Error creating subcategory");
                 return ErrorResponse<string>(ex.Message);
             }
+        }
+
+        [HttpPut]
+        [Authorize]
+        public async Task<IActionResult> UpdateCategory(CreateCategoryDto createDto)
+        {
+            if (createDto.Id <= 0) return ErrorResponse<string>("Invalid Id provided");
+
+            var isUpdated = await _productService.UpdateCategoryAsync(createDto);
+            if (isUpdated != null) return SuccessResponse(createDto,"Category updated successfully");
+
+            return ErrorResponse<string>("Duplicate name or Internal error");
+        }
+        [HttpPut]
+        [Authorize]
+        public async Task<IActionResult> UpdateSubCategory(CreateSubCategoryDto createDto)
+        {
+            if (createDto.Id <= 0) return ErrorResponse<string>("Invalid Id provided");
+            var isUpdated = await _productService.UpdateSubCategoryAsync(createDto);
+            if (isUpdated != null) return SuccessResponse(createDto, "SubCategory updated successfully");
+            return ErrorResponse<string>("Duplicate name or Internal error");
+
         }
 
         [HttpGet]
@@ -307,6 +345,26 @@ namespace AlphaLogistics.API.Controllers
                 _logger.LogError(ex, "Error getting categories");
                 return ErrorResponse<string>(ex.Message);
             }
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetCategoryById(int id)
+        {
+            if (id <= 0) return ErrorResponse<string>("Invalid Id");
+
+            var category = await _productService.GetCategoryByIdAsync(id);
+            if (category == null) return NoContentResponse<string>("No category found");
+            return SuccessResponse(category,"Category retrieved successfully");
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetSubCategoryById(int id)
+        {
+            var subcategory = await _productService.GetSubCategoryByIdAsync(id);
+            if (subcategory == null) return NoContentResponse<string>("No category found");
+            return SuccessResponse(subcategory,"Subcategory retrieved successfully");
         }
 
         [HttpGet]

@@ -4,6 +4,8 @@ namespace AlphaLogistics.API.DTO
 {
     public class CreateSubCategoryDto
     {
+
+        public int? Id { get; set; }
         [Required]
         public string Name { get; set; }
 

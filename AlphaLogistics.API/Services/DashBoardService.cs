@@ -1,5 +1,6 @@
 ﻿using AlphaLogistics.API.Model;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Serilog;
 using System.Globalization;
 using WALMS.API.Common;
@@ -8,15 +9,31 @@ namespace AlphaLogistics.API.Services
     public class DashBoardService:IDashBoardService
     {
         private readonly AlphaLogisticsContext _context;
-        public DashBoardService(AlphaLogisticsContext context)
+        private readonly IConfiguration _config;
+        public DashBoardService(AlphaLogisticsContext context, IConfiguration config)
         {
             _context = context;
+            _config = config;
         }
 
         public async Task<object> GraphData(int vendorId)
         {
             try
             {
+                var orderStatusSection = _config
+                .GetSection("OrderStatus")
+                .Get<Dictionary<string, string>>();
+
+                var orderStatusList = orderStatusSection?
+                    .Select(x => new
+                    {
+                        Id = int.Parse(x.Value),
+                        Name = x.Key,
+                        // Label = FormatLabel(x.Key)
+                    })
+                    .OrderBy(x => x.Id)
+                    .ToList();
+
                 if (vendorId > 0)
                 {
                     var vendorProductIdsQuery = _context.ProductMasters
@@ -55,6 +72,8 @@ namespace AlphaLogistics.API.Services
                         where p.VendorId == vendorId &&
                               om.Status != AppConstants.OrderStatus.Cancelled &&
                               om.Status != AppConstants.OrderStatus.Refunded
+
+                             // let status= (orderStatusList != null && orderStatusList.FirstOrDefault(x => x.Id == om.Status) != null) ? orderStatusList.FirstOrDefault(x => x.Id == om.Status).Name : "N/A"
                         select new
                         {
                             om.Id,
@@ -70,6 +89,18 @@ namespace AlphaLogistics.API.Services
                     .OrderBy(x => x.OrderDate)
                     .ToListAsync();
 
+                    var Response = orderResponse.Select(x => new
+                    {
+                        x.Id,
+                        x.OrderNumber,
+                        x.TotalAmount,
+                        Status = orderStatusList?.FirstOrDefault(s => s.Id == x.Id)?.Name ?? "N/A",
+                        x.OrderDate,
+                        x.ProductName,
+                        x.Category,
+                        x.ProductImages
+                    }).ToList();
+
                     return new
                     {
                         TotalRevenue = totalRevenue,
@@ -77,7 +108,7 @@ namespace AlphaLogistics.API.Services
                         DeliveredOrders = deliveredOrders,
                         CancelOrRefundedOrders = cancelOrRefundedOrders,
                         VendorCount = 1,
-                        OrderList = orderResponse
+                        OrderList = Response
                     };
                 }
                 else
@@ -102,12 +133,14 @@ namespace AlphaLogistics.API.Services
                         join sc in _context.SubCategoryMasters on p.SubCategoryId equals sc.Id
                         join c in _context.CategoryMasters on sc.CategoryId equals c.Id
                         join pi in _context.ProductImages on p.Id equals pi.ProductId into imageGroup
+                       // let status = (orderStatusList != null && orderStatusList.FirstOrDefault(x => x.Id == o.Status) != null) ? orderStatusList.FirstOrDefault(x => x.Id == o.Status).Name : "N/A"
+
                         select new
                         {
                             o.Id,
                             o.OrderNumber,
                             o.TotalAmount,
-                            o.Status,
+                           // Status = status,
                             o.OrderDate,
                             ProductName = p.ProductName,
                             Category = c.Name,
@@ -117,6 +150,19 @@ namespace AlphaLogistics.API.Services
                     .OrderBy(x => x.OrderDate)
                     .ToListAsync();
 
+                    var Response = orderResponse.Select(x => new
+                    {
+                        x.Id,
+                        x.OrderNumber,
+                        x.TotalAmount,
+                        Status = orderStatusList?.FirstOrDefault(s => s.Id == x.Id)?.Name ?? "N/A",
+                        x.OrderDate,
+                        x.ProductName,
+                        x.Category,
+                        x.ProductImages
+                    }).ToList();
+
+
                     return new
                     {
                         TotalRevenue = totalRevenue,
@@ -124,11 +170,12 @@ namespace AlphaLogistics.API.Services
                         DeliveredOrders = deliveredOrders,
                         CancelOrRefundedOrders = cancelOrRefundedOrders,
                         VendorCount = vendorCount,
-                        OrderList = orderResponse
+                        OrderList = Response
                     };
                 }
             }
             catch (Exception ex)
+            
             {
                 Log.Error($"DashBoardService/GraphData :{ex.Message}");
                 return null;

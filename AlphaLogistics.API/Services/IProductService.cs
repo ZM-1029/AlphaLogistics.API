@@ -6,11 +6,13 @@ namespace AlphaLogistics.API.Services
     {
         // Product CRUD
         Task<bool> BulkApproveProducts(List<int> producIds);
+        public Task<SubCategoryDto> UpdateSubCategoryAsync(CreateSubCategoryDto createDto);
+        public Task<CategoryDto> UpdateCategoryAsync(CreateCategoryDto createDto);
         Task<ProductDto> CreateProductAsync(int vendorId, CreateProductDto createDto, HttpContext httpContext);
         Task<ProductDto> GetProductByIdAsync(int productId);
         Task<ProductListResponseDto> GetAllProductsAsync(ProductQueryDto dto);
-        Task<List<ProductDto>> GetProductsByVendorAsync(int vendorId, bool? isActive = null);
-        Task<List<ProductDto>> GetProductsBySubCategoryAsync(int subCategoryId, bool? isActive = null);
+        Task<List<ProductDto>> GetProductsByVendorAsync(int vendorId);
+        Task<List<ProductDto>> GetProductsBySubCategoryAsync(int subCategoryId);
         Task<ProductDto> UpdateProductAsync(int productId, UpdateProductDto updateDto);
         Task<bool> DeleteProductAsync(int productId); // Soft delete
         Task<bool> RestoreProductAsync(int productId);

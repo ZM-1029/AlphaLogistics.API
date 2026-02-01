@@ -321,7 +321,7 @@ namespace AlphaLogistics.API.Services
         }
 
         // Get Products by Vendor
-        public async Task<List<ProductDto>> GetProductsByVendorAsync(int vendorId, bool? isActive = null)
+        public async Task<List<ProductDto>> GetProductsByVendorAsync(int vendorId)
         {
             var query = _context.ProductMasters
                 .Include(p => p.VendorMaster)
@@ -330,10 +330,10 @@ namespace AlphaLogistics.API.Services
                 .Where(p => p.VendorId == vendorId)
                 .AsQueryable();
 
-            if (isActive.HasValue)
+           /* if (isActive.HasValue)
             {
                 query = query.Where(p => p.IsActive == isActive.Value);
-            }
+            }*/
 
             var products = await query
                 .OrderByDescending(p => p.CreatedAt)
@@ -349,7 +349,7 @@ namespace AlphaLogistics.API.Services
         }
 
         // Get Products by SubCategory
-        public async Task<List<ProductDto>> GetProductsBySubCategoryAsync(int subCategoryId, bool? isActive = null)
+        public async Task<List<ProductDto>> GetProductsBySubCategoryAsync(int subCategoryId)
         {
             var query = _context.ProductMasters
                 .Include(p => p.VendorMaster)
@@ -358,10 +358,10 @@ namespace AlphaLogistics.API.Services
                 .Where(p => p.SubCategoryId == subCategoryId)
                 .AsQueryable();
 
-            if (isActive.HasValue)
+           /* if (isActive.HasValue)
             {
                 query = query.Where(p => p.IsActive == isActive.Value);
-            }
+            }*/
 
             var products = await query
                 .OrderByDescending(p => p.CreatedAt)
@@ -556,7 +556,47 @@ namespace AlphaLogistics.API.Services
                 Description = category.Description
             };
         }
+        public async Task<CategoryDto> UpdateCategoryAsync(CreateCategoryDto createDto)
+        {
+            var duplicatecategory = _context.CategoryMasters.
+                FirstOrDefault(x => x.Id != createDto.Id && x.Name.Trim().ToLower() == createDto.Name.Trim().ToLower());
+            if (duplicatecategory != null) return null;
+            var existingCategory = _context.CategoryMasters.FirstOrDefault(x => x.Id == createDto.Id);
+            if (existingCategory == null) return null;
 
+            existingCategory.Name = createDto.Name;
+            existingCategory.Description = createDto.Description;
+            await _context.SaveChangesAsync();
+
+            return new CategoryDto
+            {
+                Id = createDto.Id??0,
+                Name = createDto.Name,
+                Description = createDto.Description
+            };
+           // return createDto;
+        }
+        public async Task<SubCategoryDto> UpdateSubCategoryAsync(CreateSubCategoryDto createDto)
+        {
+            var duplicateSubcategory = _context.SubCategoryMasters.
+                FirstOrDefault(x => x.Id != createDto.Id && x.Name.Trim().ToLower() == createDto.Name.Trim().ToLower());
+            if (duplicateSubcategory != null) return null;
+            var existingSubCategory = _context.SubCategoryMasters.FirstOrDefault(x => x.Id == createDto.Id);
+            if (existingSubCategory == null) return null;
+
+            existingSubCategory.Name = createDto.Name;
+            existingSubCategory.Description = createDto.Description;
+            existingSubCategory.CategoryId= createDto.CategoryId;
+            await _context.SaveChangesAsync();
+            return new SubCategoryDto
+            {
+                Id = createDto.Id??0,
+                Name = createDto.Name,
+                Description = createDto.Description,
+                CategoryId = createDto.CategoryId,
+               // CategoryName = category.Name
+            };
+        }
         public async Task<SubCategoryDto> CreateSubCategoryAsync(CreateSubCategoryDto createDto)
         {
             var category = await _context.CategoryMasters
