@@ -27,11 +27,11 @@ namespace AlphaLogistics.API.Controllers
                 .Get<Dictionary<string, string>>();
 
             var result = orderStatusSection?
-                .Select(x => new 
+                .Select(x => new
                 {
                     Id = int.Parse(x.Value),
                     Name = x.Key,
-                   // Label = FormatLabel(x.Key)
+                    // Label = FormatLabel(x.Key)
                 })
                 .OrderBy(x => x.Id)
                 .ToList();
@@ -50,15 +50,16 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpGet]
-        
+
         public async Task<IActionResult> OrderList(int? userId)
-        { 
-            var orderList= await _orderService.GetOrderList(userId);
-            if(orderList!=null && orderList.Any())
+        {
+            var orderList = await _orderService.GetOrderList(userId);
+            if (orderList != null && orderList.Any())
                 return SuccessResponse(orderList, "Data retrieved successfully");
             else
                 return ErrorResponse<string>("No orders found");
         }
+
         [HttpGet]
         public async Task<IActionResult> GetOrderById(int orderId)
         {
@@ -70,9 +71,9 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> ChangeOrderStatus(int orderId,int statusId)
+        public async Task<IActionResult> ChangeOrderStatus(int orderId, int statusId)
         {
-            var ischanged = await _orderService.ChangeStatus(orderId,statusId);
+            var ischanged = await _orderService.ChangeStatus(orderId, statusId);
             if (ischanged)
             {
                 // send mail to user about order status change
@@ -83,6 +84,29 @@ namespace AlphaLogistics.API.Controllers
                 // send mail to user about order status change
                 return ErrorResponse<string>("No orders found");
             }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CancelOrder(int orderId)
+        {
+            var cancelled = await _orderService.CancelOrder(orderId);
+            if (cancelled) return Ok(new { Status = true, Message = "Order cancelled successfully" });
+            else return Ok(new { Status = false, Message = "Order can not be cancelled at this stage" });
+        }
+
+        [HttpGet]
+        public IActionResult OrderTracking(int orderId)
+        {
+            var data = _orderService.OrderTrackingData(orderId);
+            return SuccessResponse(data, "Data retrieved successfully");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> IsExistingSKU(string sku)
+        {
+            var isExisting = await _orderService.IsExistingSKU(sku);
+            if (isExisting) return Ok(new { Status = true, Message = "SKU exist in database" });
+            else return Ok(new { Status = false, Message = "No sku found with provided name" });
         }
     }
 }

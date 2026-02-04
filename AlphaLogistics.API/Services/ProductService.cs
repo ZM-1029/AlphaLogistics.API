@@ -123,6 +123,7 @@ namespace AlphaLogistics.API.Services
             var product = new ProductMaster
             {
                 VendorId = VendorId,
+                SKU = $"SKU-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                 SubCategoryId = createDto.SubCategoryId,
                 ProductName = createDto.ProductName,
                 Description = createDto.Description,
@@ -301,6 +302,7 @@ namespace AlphaLogistics.API.Services
                 IsActive = product.IsActive,
                 CreatedAt = product.CreatedAt,
                 LastUpdatedAt = product.LastUpdatedAt,
+                SKU = product.SKU,
 
                 VendorId = product.VendorId,
                 VendorName = product.VendorMaster?.VendorName ?? "Unknown Vendor",

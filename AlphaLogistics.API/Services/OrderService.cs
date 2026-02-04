@@ -203,5 +203,60 @@ namespace AlphaLogistics.API.Services
                 return 0;
             }
         }
+
+        public async Task<bool> IsExistingSKU(string sku)
+        {
+            var isExisting = _context.ProductMasters.FirstOrDefault(x => x.SKU!=null &&  x.SKU.Trim().ToLower() == sku.Trim().ToLower());
+             return  isExisting!=null?  true: false;
+        }
+
+        public async Task<bool> CancelOrder( int orderId)
+        {
+            var existingOrder=_context.OrderMasters.FirstOrDefault(x=>x.Id==orderId);
+            if (existingOrder != null) 
+            {
+                if (existingOrder.Status == AppConstants.OrderStatus.Pending ||
+                    existingOrder.Status == AppConstants.OrderStatus.Confirmed ||
+                    existingOrder.Status == AppConstants.OrderStatus.Packed ||
+                    existingOrder.Status == AppConstants.OrderStatus.Processing)
+                {
+                    existingOrder.Status = AppConstants.OrderStatus.Cancelled;
+                    await _context.SaveChangesAsync();
+                    return true;
+                }
+                return false;
+            } 
+            else 
+            {
+                return false;
+            }
+        }
+
+        public async Task<dynamic> OrderTrackingData(int orderId)
+        { 
+            var orderStatusHistory = _context.OrderStatusHistory.Where(x => x.OrderId == orderId).ToList();
+
+            var orderStatusSection = _configuration
+              .GetSection("OrderStatus")
+              .Get<Dictionary<string, string>>();
+
+            var statusList = orderStatusSection?
+                .Select(x => new
+                {
+                    Id = int.Parse(x.Value),
+                    Name = x.Key,
+                    // Label = FormatLabel(x.Key)
+                })
+                .OrderBy(x => x.Id)
+                .ToList();
+
+            var trackingData = orderStatusHistory.Select(x => new {
+                Status= statusList?.FirstOrDefault(s=>s.Id==x.StatusId)?.Name,
+                x.CreatedOn,
+                x.IsActive,
+            }).OrderBy(x=>x.CreatedOn).ToList();
+
+            return trackingData;
+        }
     }
 }

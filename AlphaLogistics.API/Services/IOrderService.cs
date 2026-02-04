@@ -9,6 +9,10 @@ namespace AlphaLogistics.API.Services
         public  Task<dynamic?> GetOrderById(int orderId);
         //public Task<bool> EditOrder(OrderDTO orders);
         public Task<bool> ChangeStatus(int orderId, int statusId);
+        public  Task<bool> IsExistingSKU(string sku);
+        public Task<bool> CancelOrder(int orderId);
+        public  Task<dynamic> OrderTrackingData(int orderId);
+
 
     }
 }
