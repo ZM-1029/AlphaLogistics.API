@@ -50,7 +50,6 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpGet]
-
         public async Task<IActionResult> OrderList(int? userId)
         {
             var orderList = await _orderService.GetOrderList(userId);
