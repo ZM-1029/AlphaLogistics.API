@@ -50,9 +50,9 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> OrderList(int? userId)
+        public async Task<IActionResult> OrderList(int? userId, DateTime? from , DateTime? to, int? statusId)
         {
-            var orderList = await _orderService.GetOrderList(userId);
+            var orderList = await _orderService.GetOrderList(userId, from,to,statusId);
             if (orderList != null && orderList.Any())
                 return SuccessResponse(orderList, "Data retrieved successfully");
             else

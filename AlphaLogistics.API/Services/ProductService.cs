@@ -418,7 +418,7 @@ namespace AlphaLogistics.API.Services
                 product.IsActive = updateDto.IsActive.Value;
 
             product.LastUpdatedAt = DateTime.UtcNow;
-
+            product.IsApproved = false; // Mark as unapproved after update
             // Handle images
             if (updateDto.ProductImages != null && updateDto.ProductImages.Any())
             {

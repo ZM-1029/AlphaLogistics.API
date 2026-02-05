@@ -104,7 +104,7 @@ namespace AlphaLogistics.API.Services
             }
         }
 
-        public async Task<List<dynamic>?> GetOrderList(int? userId)
+        public async Task<List<dynamic>?> GetOrderList(int? userId, DateTime? from, DateTime? to, int? statusId)
         {
             try 
             { 
@@ -116,6 +116,16 @@ namespace AlphaLogistics.API.Services
                 }
 
                 if (!orders.Any()) return null;
+
+                if (from.HasValue && to.HasValue)
+                {
+                    orders = orders.Where(x => x.OrderDate.Date >= from.Value.Date && x.OrderDate.Date <= to.Value.Date).ToList();
+                }
+
+                if (statusId.HasValue)
+                {
+                    orders = orders.Where(x => x.Status == statusId).ToList();
+                }
 
                 var orderStatusSection = _configuration
                .GetSection("OrderStatus")
@@ -138,7 +148,7 @@ namespace AlphaLogistics.API.Services
                 Status= statusList?.FirstOrDefault(s=>s.Id==x.Status)?.Name,
                 x.IsPlacedByAdmin,
                 x.TotalAmount,
-                }).OrderBy(x=>x.OrderDate).ToList();
+                }).OrderBy(x=>x.OrderDate).ToList();                       
 
                 return response;
             }
