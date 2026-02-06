@@ -2,6 +2,8 @@
 using AlphaLogistics.API.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using Serilog;
 using System.Transactions;
 using WALMS.API.Common;
@@ -20,7 +22,6 @@ namespace AlphaLogistics.API.Services
             _context = context;
             _configuration = config;
         }     
-
         public Task<bool> ChangeStatus(int orderId, int statusId)
         {
            var existingOrder = _context.OrderMasters.FirstOrDefault(x => x.Id == orderId);
@@ -148,6 +149,14 @@ namespace AlphaLogistics.API.Services
                 Status= statusList?.FirstOrDefault(s=>s.Id==x.Status)?.Name,
                 x.IsPlacedByAdmin,
                 x.TotalAmount,
+                x.DeliveryCharge,
+                x.DeliveryType,
+                x.DeliveryInstuctions,
+                x.DeliveryAddress,
+                x.Branch,
+                x.CourierPartner,
+                x.Remark,
+                x.DeliveryDate
                 }).OrderBy(x=>x.OrderDate).ToList();                       
 
                 return response;
@@ -181,6 +190,13 @@ namespace AlphaLogistics.API.Services
                     Status = AppConstants.OrderStatus.Pending,
                     OrderDate = DateTime.UtcNow,
                     IsPlacedByAdmin = order.IsPlacedByAdmin,
+                    DeliveryAddress = order.DeliveryAddress,
+                    Branch = order.Branch,
+                    CourierPartner = order.CourierPartner,
+                    DeliveryType = order.DeliveryType,
+                    DeliveryInstuctions = order.DeliveryInstuctions,
+                    Remark = order.Remark
+                               
                 };
 
                 using (var transaction = await _context.Database.BeginTransactionAsync())
@@ -267,6 +283,200 @@ namespace AlphaLogistics.API.Services
             }).OrderBy(x=>x.CreatedOn).ToList();
 
             return trackingData;
+        }
+
+        public async Task<byte[]> ExportOrdersToExcelAsync(int? userId, DateTime? from, DateTime? to, int? statusId)
+        {
+            try
+            {
+                // Build query with filtering
+                var query = _context.OrderMasters
+                    .Include(o => o.UserMaster)
+                    .Include(o => o.OrderItems)
+                    .AsQueryable();
+
+                if (userId != null)
+                {
+                    query = query.Where(x => x.UserId == userId);
+                }
+
+                if (from.HasValue && to.HasValue)
+                {
+                    query = query.Where(x => x.OrderDate.Date >= from.Value.Date &&
+                                            x.OrderDate.Date <= to.Value.Date);
+                }
+
+                if (statusId.HasValue)
+                {
+                    query = query.Where(x => x.Status == statusId);
+                }
+
+                // Get order status mapping
+                var orderStatusSection = _configuration
+                    .GetSection("OrderStatus")
+                    .Get<Dictionary<string, string>>();
+
+                // Get all orders first, then process
+                var ordersList = await query.Include(o=>o.UserMaster)
+                    .OrderByDescending(x => x.OrderDate)
+                    .ToListAsync();
+
+                if (!ordersList.Any())
+                {
+                    throw new Exception("No orders found for export");
+                }
+
+                // Create a list to hold processed orders
+                var orders = ordersList.Select(x => new
+                {
+                    x.Id,
+                    x.OrderNumber,
+                    x.OrderDate,
+                    x.Status,
+                    CustomerName = x.UserMaster != null ? x.UserMaster.UserName : "N/A",
+                    x.TotalAmount,
+                    x.DeliveryCharge,
+                    GrandTotal = x.TotalAmount + (x.DeliveryCharge ?? 0),
+                    x.DeliveryAddress,
+                    x.DeliveryType,
+                    x.Branch,
+                    x.CourierPartner,
+                    ItemCount = x.OrderItems != null ? x.OrderItems.Count : 0,
+                    x.IsPlacedByAdmin,
+                    x.Remark,
+                    // Use reflection to get the private DeliveryDate field if needed
+                    DeliveryDate = GetDeliveryDate(x), // We'll create a helper method
+                    StatusName = orderStatusSection != null && orderStatusSection.ContainsValue(x.Status.ToString())
+                        ? orderStatusSection.FirstOrDefault(s => s.Value == x.Status.ToString()).Key
+                        : "Unknown"
+                }).ToList();
+
+                // Create Excel package
+                using var package = new ExcelPackage();
+                var worksheet = package.Workbook.Worksheets.Add("Orders Report");
+
+                // Set column headers
+                var headers = new string[]
+                {
+            "Order ID", "Order Number", "Order Date", "Delivery Date", "Status",
+            "Customer Name", "Total Amount", "Delivery Charge", "Grand Total",
+            "Delivery Address", "Delivery Type", "Branch", "Courier Partner",
+            "Item Count", "Placed By Admin", "Remark"
+                };
+
+                for (int i = 0; i < headers.Length; i++)
+                {
+                    worksheet.Cells[1, i + 1].Value = headers[i];
+                    worksheet.Cells[1, i + 1].Style.Font.Bold = true;
+                    worksheet.Cells[1, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightBlue);
+                    worksheet.Cells[1, i + 1].Style.Border.BorderAround(ExcelBorderStyle.Thin);
+                }
+
+                // Add data rows
+                int row = 2;
+                foreach (var order in orders)
+                {
+                    worksheet.Cells[row, 1].Value = order.Id;
+                    worksheet.Cells[row, 2].Value = order.OrderNumber;
+
+                    // Order Date
+                    worksheet.Cells[row, 3].Value = order.OrderDate;
+                    worksheet.Cells[row, 3].Style.Numberformat.Format = "yyyy-mm-dd hh:mm";
+
+                    // Delivery Date (handle null)
+                    if (order.DeliveryDate.HasValue)
+                    {
+                        worksheet.Cells[row, 4].Value = order.DeliveryDate.Value;
+                        worksheet.Cells[row, 4].Style.Numberformat.Format = "yyyy-mm-dd hh:mm";
+                    }
+                    else
+                    {
+                        worksheet.Cells[row, 4].Value = "Not Delivered";
+                    }
+
+                    worksheet.Cells[row, 5].Value = order.StatusName;
+                    worksheet.Cells[row, 6].Value = order.CustomerName;
+
+                    // Amount columns - CORRECTED column indices
+                    worksheet.Cells[row, 7].Value = order.TotalAmount;           // Column 7: Total Amount
+                    worksheet.Cells[row, 7].Style.Numberformat.Format = "#,##0.00";
+
+                    worksheet.Cells[row, 8].Value = order.DeliveryCharge ?? 0;   // Column 8: Delivery Charge
+                    worksheet.Cells[row, 8].Style.Numberformat.Format = "#,##0.00";
+
+                    worksheet.Cells[row, 9].Value = order.GrandTotal;            // Column 9: Grand Total
+                    worksheet.Cells[row, 9].Style.Numberformat.Format = "#,##0.00";
+
+                    worksheet.Cells[row, 10].Value = order.DeliveryAddress;
+                    worksheet.Cells[row, 11].Value = order.DeliveryType;
+                    worksheet.Cells[row, 12].Value = order.Branch;
+                    worksheet.Cells[row, 13].Value = order.CourierPartner;
+                    worksheet.Cells[row, 14].Value = order.ItemCount;
+                    worksheet.Cells[row, 15].Value = order.IsPlacedByAdmin ? "Yes" : "No";
+                    worksheet.Cells[row, 16].Value = order.Remark;
+
+                    // Add border to each cell in the row
+                    for (int col = 1; col <= headers.Length; col++)
+                    {
+                        worksheet.Cells[row, col].Style.Border.BorderAround(ExcelBorderStyle.Thin);
+                    }
+
+                    row++;
+                }
+
+                // Auto-fit columns for better readability
+                worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+                // Add summary information
+                var lastRow = row;
+                worksheet.Cells[lastRow + 2, 6].Value = "Total Orders:";
+                worksheet.Cells[lastRow + 2, 7].Value = orders.Count;
+                worksheet.Cells[lastRow + 2, 7].Style.Font.Bold = true;
+
+                worksheet.Cells[lastRow + 3, 6].Value = "Total Amount:";
+                worksheet.Cells[lastRow + 3, 7].Value = orders.Sum(o => o.GrandTotal);
+                worksheet.Cells[lastRow + 3, 7].Style.Numberformat.Format = "#,##0.00";
+                worksheet.Cells[lastRow + 3, 7].Style.Font.Bold = true;
+
+                // Add filter to headers
+                worksheet.Cells[1, 1, 1, headers.Length].AutoFilter = true;
+
+                return package.GetAsByteArray();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"OrderExportService/ExportOrdersToExcelAsync: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Helper method to get DeliveryDate (if it's private)
+        private DateTime? GetDeliveryDate(OrderMaster order)
+        {
+            // If DeliveryDate is private, you might need to:
+            // 1. Make it public temporarily: Change "private DateTime? DeliveryDate" to "public DateTime? DeliveryDate"
+            // 2. Or add a public getter: public DateTime? GetDeliveryDate() => DeliveryDate;
+            // 3. Or use reflection (not recommended for production):
+
+            // Option 3: Using reflection (remove if you make it public)
+            try
+            {
+                var property = typeof(OrderMaster).GetProperty("DeliveryDate",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance);
+
+                if (property != null)
+                {
+                    return property.GetValue(order) as DateTime?;
+                }
+            }
+            catch
+            {
+                // Log or handle error
+            }
+
+            return null;
         }
     }
 }

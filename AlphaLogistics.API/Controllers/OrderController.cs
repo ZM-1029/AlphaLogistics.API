@@ -50,9 +50,9 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> OrderList(int? userId, DateTime? from , DateTime? to, int? statusId)
+        public async Task<IActionResult> OrderList(int? userId, DateTime? from, DateTime? to, int? statusId)
         {
-            var orderList = await _orderService.GetOrderList(userId, from,to,statusId);
+            var orderList = await _orderService.GetOrderList(userId, from, to, statusId);
             if (orderList != null && orderList.Any())
                 return SuccessResponse(orderList, "Data retrieved successfully");
             else
@@ -106,6 +106,21 @@ namespace AlphaLogistics.API.Controllers
             var isExisting = await _orderService.IsExistingSKU(sku);
             if (isExisting) return Ok(new { Status = true, Message = "SKU exist in database" });
             else return Ok(new { Status = false, Message = "No sku found with provided name" });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportOrdersToExcel(int? userId, DateTime? from, DateTime? to, int? statusId)
+        {
+            var fileContent = await _orderService.ExportOrdersToExcelAsync(userId, from, to, statusId);
+            if (fileContent != null && fileContent.Length > 0)
+            {
+                var fileName = $"Orders_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+                return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            else
+            {
+                return ErrorResponse<string>("No orders found to export");
+            }
         }
     }
 }

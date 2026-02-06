@@ -12,6 +12,7 @@ namespace AlphaLogistics.API.Services
         public  Task<bool> IsExistingSKU(string sku);
         public Task<bool> CancelOrder(int orderId);
         public  Task<dynamic> OrderTrackingData(int orderId);
+        public  Task<byte[]> ExportOrdersToExcelAsync(int? userId, DateTime? from, DateTime? to, int? statusId);
 
 
     }

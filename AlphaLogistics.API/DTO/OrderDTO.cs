@@ -11,6 +11,12 @@ namespace AlphaLogistics.API.DTO
        // public int UserId { get; set; }
         public string? OrderNumber { get; set; }
         public decimal? DeliveryCharge { get; set; }
+        public string? DeliveryAddress { get; set; }
+        public string? Branch { get; set; }
+        public string? CourierPartner { get; set; }
+        public string? DeliveryType { get; set; }
+        public string? DeliveryInstuctions { get; set; }
+        public string? Remark { get; set; }
         public decimal? TotalAmount { get; set; }
         public List<OrderItemDTO> OrderItems { get; set; }
     }
