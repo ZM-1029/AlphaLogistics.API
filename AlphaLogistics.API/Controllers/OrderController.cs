@@ -94,9 +94,9 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpGet]
-        public IActionResult OrderTracking(int orderId)
+        public async Task<IActionResult> OrderTracking(int orderId)
         {
-            var data = _orderService.OrderTrackingData(orderId);
+            var data = await _orderService.OrderTrackingData(orderId);
             return SuccessResponse(data, "Data retrieved successfully");
         }
 
