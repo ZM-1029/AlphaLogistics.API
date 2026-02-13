@@ -5,8 +5,10 @@ using Microsoft.Extensions.Configuration;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using Serilog;
+using System.Data;
 using System.Transactions;
 using WALMS.API.Common;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace AlphaLogistics.API.Services
 {
@@ -105,27 +107,50 @@ namespace AlphaLogistics.API.Services
             }
         }
 
-        public async Task<List<dynamic>?> GetOrderList(int? userId, DateTime? from, DateTime? to, int? statusId)
+        public async Task<int> OrderCount(OrderListDTO data)
+        {
+            var orders = await _context.OrderMasters.ToListAsync();
+
+            if (data.userId != null)
+            {
+                orders = orders.Where(x => x.UserId == data.userId).ToList();
+            }
+
+            if (!orders.Any()) return 0;
+
+            if (data.from.HasValue && data.to.HasValue)
+            {
+                orders = orders.Where(x => x.OrderDate.Date >= data.from.Value.Date && x.OrderDate.Date <= data.to.Value.Date).ToList();
+            }
+
+            if (data.statusId.HasValue)
+            {
+                orders = orders.Where(x => x.Status == data.statusId).ToList();
+            }
+
+           return orders.Count;          
+        }
+        public async Task<List<dynamic>?> GetOrderList(OrderListDTO data)
         {
             try 
             { 
                 var orders = await _context.OrderMasters.ToListAsync();
 
-                if (userId != null)
+                if (data.userId != null && data.userId>0)
                 { 
-                    orders = orders.Where(x => x.UserId == userId).ToList();
+                    orders = orders.Where(x => x.UserId == data.userId).ToList();
                 }
 
                 if (!orders.Any()) return null;
 
-                if (from.HasValue && to.HasValue)
+                if (data.from.HasValue && data.to.HasValue)
                 {
-                    orders = orders.Where(x => x.OrderDate.Date >= from.Value.Date && x.OrderDate.Date <= to.Value.Date).ToList();
+                    orders = orders.Where(x => x.OrderDate.Date >= data.from.Value.Date && x.OrderDate.Date <= data.to.Value.Date).ToList();
                 }
 
-                if (statusId.HasValue)
+                if (data.statusId.HasValue && data.statusId>0)
                 {
-                    orders = orders.Where(x => x.Status == statusId).ToList();
+                    orders = orders.Where(x => x.Status == data.statusId).ToList();
                 }
 
                 var orderStatusSection = _configuration
@@ -157,7 +182,12 @@ namespace AlphaLogistics.API.Services
                 x.CourierPartner,
                 x.Remark,
                 x.DeliveryDate
-                }).OrderBy(x=>x.OrderDate).ToList();                       
+                }).OrderBy(x=>x.OrderDate).ToList();
+
+                response = response
+                            .Skip((data.page - 1) * data.pageSize)
+                            .Take(data.pageSize)
+                            .ToList();
 
                 return response;
             }
@@ -166,6 +196,16 @@ namespace AlphaLogistics.API.Services
                 Log.Error($"OrderService/GetOrderList: {ex.Message}");
                 return null;
             }
+        }
+
+        public async Task<bool> AssignPradesh(int orderId, int pradeshId)
+        {
+            var order= _context.OrderMasters.FirstOrDefault(x => x.Id == orderId);
+            if (order == null) { return false; }
+
+            order.PradeshId= pradeshId;
+            await _context.SaveChangesAsync();
+            return true;
         }
         public async Task<int> PlaceOrder(OrderDTO order)
         {
@@ -195,8 +235,8 @@ namespace AlphaLogistics.API.Services
                     CourierPartner = order.CourierPartner,
                     DeliveryType = order.DeliveryType,
                     DeliveryInstuctions = order.DeliveryInstuctions,
-                    Remark = order.Remark
-                               
+                    Remark = order.Remark,
+                    PradeshId = order.PradeshId,                           
                 };
 
                 using (var transaction = await _context.Database.BeginTransactionAsync())
@@ -227,6 +267,79 @@ namespace AlphaLogistics.API.Services
             {
                 Log.Error($"Order Service/PlaceOrder: {ex.Message}");
                 return 0;
+            }
+        }
+        public async Task<bool> UpdateOrder(int orderId, OrderDTO order)
+        {
+            try
+            {
+                var userId = _userContext.UserId;
+
+                if (userId <= 0)
+                {
+                    Log.Error("Order Service/UpdateOrder: UserId is zero");
+                    return false;
+                }
+
+                var existingOrder = await _context.OrderMasters
+                    .Include(o => o.OrderItems)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                if (existingOrder == null)
+                {
+                    Log.Error($"Order Service/UpdateOrder: Order not found for Id {orderId}");
+                    return false;
+                }
+
+                var orderTotal = order.OrderItems
+                    .Sum(item => (item.UnitPrice ?? 0) * item.Quantity);
+
+                using (var transaction = await _context.Database.BeginTransactionAsync())
+                {
+                    // ✅ Update OrderMaster fields
+                    existingOrder.DeliveryCharge = order.DeliveryCharge ?? 0;
+                    existingOrder.TotalAmount = orderTotal + (order.DeliveryCharge ?? 0);
+                    existingOrder.DeliveryAddress = order.DeliveryAddress;
+                    existingOrder.Branch = order.Branch;
+                    existingOrder.CourierPartner = order.CourierPartner;
+                    existingOrder.DeliveryType = order.DeliveryType;
+                    existingOrder.DeliveryInstuctions = order.DeliveryInstuctions;
+                    existingOrder.Remark = order.Remark;
+                    existingOrder.PradeshId = order.PradeshId;
+                    existingOrder.IsPlacedByAdmin = order.IsPlacedByAdmin;
+                    existingOrder.Status = AppConstants.OrderStatus.Pending; // optional
+                    //existingOrder.UpdatedDate = DateTime.UtcNow; // if column exists
+
+                    await _context.SaveChangesAsync();
+
+                    // ✅ Remove old items
+                    _context.OrderItems.RemoveRange(existingOrder.OrderItems);
+                    await _context.SaveChangesAsync();
+
+                    // ✅ Add updated items
+                    foreach (var item in order.OrderItems)
+                    {
+                        var orderItem = new OrderItems
+                        {
+                            OrderId = existingOrder.Id,
+                            ProductId = item.ProductId,
+                            Quantity = item.Quantity,
+                            UnitPrice = item.UnitPrice ?? 0
+                        };
+
+                        _context.OrderItems.Add(orderItem);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Order Service/UpdateOrder: {ex.Message}");
+                return false;
             }
         }
 

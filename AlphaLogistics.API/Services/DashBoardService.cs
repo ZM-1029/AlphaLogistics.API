@@ -103,11 +103,11 @@ namespace AlphaLogistics.API.Services
 
                     return new
                     {
-                        TotalRevenue = totalRevenue,
+                       /* TotalRevenue = totalRevenue,
                         TotalOrders = totalOrders,
                         DeliveredOrders = deliveredOrders,
                         CancelOrRefundedOrders = cancelOrRefundedOrders,
-                        VendorCount = 1,
+                        VendorCount = 1,*/
                         OrderList = Response
                     };
                 }
@@ -165,11 +165,11 @@ namespace AlphaLogistics.API.Services
 
                     return new
                     {
-                        TotalRevenue = totalRevenue,
+                        /*TotalRevenue = totalRevenue,
                         TotalOrders = totalOrders,
                         DeliveredOrders = deliveredOrders,
                         CancelOrRefundedOrders = cancelOrRefundedOrders,
-                        VendorCount = vendorCount,
+                        VendorCount = vendorCount,*/
                         OrderList = Response
                     };
                 }
@@ -181,7 +181,6 @@ namespace AlphaLogistics.API.Services
                 return null;
             }
         }
-
         public async Task<object> GetMonthlySalesReport(int vendorId)
         {
             try

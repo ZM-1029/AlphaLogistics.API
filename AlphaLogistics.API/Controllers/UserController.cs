@@ -169,12 +169,14 @@ namespace AlphaLogistics.API.Controllers
                 return ErrorResponse<string>(ex.Message);
             }
         }*/
-        public async Task<IActionResult> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers(int? roleId, int page, int pageSize)
         {
             try
             {
-                var users = await _userService.GetAllUsersAsync();
-                return SuccessResponse(users);
+                var users = await _userService.GetAllUsersAsync(roleId,page,pageSize);
+                var totalCount = await _userService.UserCount(roleId);
+                var response = new { TotalCount= totalCount , users= users };
+                return SuccessResponse(response);
             }
             catch (Exception ex)
             {
@@ -408,6 +410,16 @@ namespace AlphaLogistics.API.Controllers
         }
 
         #endregion
+
+        [HttpGet]
+        public async Task<IActionResult> GetActiveRoles()
+        {
+            var roles = await _userService.ActiveRoles();
+
+            if (roles == null) return NoContentResponse<string>("No active role found!");
+
+            return SuccessResponse(roles,"Data retrieved successfully!");
+        }
 
         /*
         [HttpPut("update-profile")]

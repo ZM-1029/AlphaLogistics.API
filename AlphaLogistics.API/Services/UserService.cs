@@ -24,6 +24,14 @@ namespace AlphaLogistics.API.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
+
+        public async Task<object> ActiveRoles()
+        { 
+            var roles=await _context.RoleMasters.Where(x=>x.Id!=AppConstants.UserRole.Vendor).ToListAsync();
+
+            return roles.Select(x => new { x.Id,Name=x.Name}).OrderBy(x=>x.Name);
+        }
+
         public List<PradeshMaster> GetActivePradeshList()
         { 
             var pradeshList=_context.PradeshMasters             
@@ -401,16 +409,31 @@ namespace AlphaLogistics.API.Services
             return ConvertToUserResponseDto(user);
         }
 
-        public async Task<List<UserResponseDto>> GetAllUsersAsync()
+        public async Task<int> UserCount( int? roleId)
+        {
+            var query = await _context.UserMasters.ToListAsync();
+            query = query.Where(u => /*u.RoleId != AppConstants.UserRole.Customer &&*/ u.RoleId != AppConstants.UserRole.Vendor).ToList();
+
+            if (roleId != null && roleId > 0)
+                query = query.Where(x => x.RoleId == roleId).ToList();
+            return query.Count();
+        }
+
+        public async Task<List<UserResponseDto>> GetAllUsersAsync(int? roleId, int page, int pageSize)
         {
             var query = _context.UserMasters
                 .Include(u => u.RoleMaster)
                 .Include(u => u.VendorMaster)
                 .AsQueryable();
 
+            query = query.Where(u => /*u.RoleId != AppConstants.UserRole.Customer &&*/ u.RoleId != AppConstants.UserRole.Vendor);
 
-                query = query.Where(u => u.RoleId != AppConstants.UserRole.Customer && u.RoleId != AppConstants.UserRole.Vendor);
+            if(roleId !=null && roleId>0 )
+                query=query.Where(x=>x.RoleId==roleId);
 
+            query =  query
+                        .Skip((page - 1) * pageSize)
+                        .Take(pageSize);                     
 
             var users = await query
                 .OrderByDescending(u => u.CreatedAt)

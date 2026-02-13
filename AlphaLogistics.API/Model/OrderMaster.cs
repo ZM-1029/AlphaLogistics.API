@@ -22,6 +22,8 @@ namespace AlphaLogistics.API.Model
         public string? DeliveryType { get; set; }    
         public string? DeliveryInstuctions { get; set; }    
         public string? Remark { get; set; }    
+
+        public int? PradeshId { get; set; }
         public DateTime? DeliveryDate { get; set; }
 
 

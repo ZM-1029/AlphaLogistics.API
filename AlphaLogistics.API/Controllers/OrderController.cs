@@ -3,6 +3,7 @@ using AlphaLogistics.API.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using System.Data;
 using WALMS.API.Controllers;
 
 namespace AlphaLogistics.API.Controllers
@@ -38,7 +39,25 @@ namespace AlphaLogistics.API.Controllers
 
             return SuccessResponse(result, "Data retrieved successfully");
         }
+        [HttpGet]
+        public IActionResult PaymentOptions()
+        {
+            var orderStatusSection = _configuration
+                .GetSection("PaymentOptions")
+                .Get<Dictionary<string, string>>();
 
+            var result = orderStatusSection?
+                .Select(x => new
+                {
+                    Id = int.Parse(x.Value),
+                    Name = x.Key,
+                    // Label = FormatLabel(x.Key)
+                })
+                .OrderBy(x => x.Id)
+                .ToList();
+
+            return SuccessResponse(result, "Data retrieved successfully");
+        }
         [HttpPost]
         public async Task<IActionResult> PlaceOrder(OrderDTO order)
         {
@@ -48,13 +67,35 @@ namespace AlphaLogistics.API.Controllers
 
             else return ErrorResponse<string>("Error while placing order");
         }
-
-        [HttpGet]
-        public async Task<IActionResult> OrderList(int? userId, DateTime? from, DateTime? to, int? statusId)
+        [HttpPatch]
+        public async Task<IActionResult> UpdateOrder(int orderId, OrderDTO order)
         {
-            var orderList = await _orderService.GetOrderList(userId, from, to, statusId);
+            if (orderId <= 0) { return ErrorResponse<string>("Invalid order Id"); }
+
+            var isupdated = await _orderService.UpdateOrder(orderId, order);
+            if (isupdated) return SuccessResponse(isupdated, "Order updated successfully");
+            return ErrorResponse<string>("Error while updating the order!");
+
+        }
+        [HttpPost]
+        public async Task<IActionResult> AssignPradesh(int pradeshId, int orderId)
+        {
+            var isAssigned =await  _orderService.AssignPradesh(pradeshId,orderId);
+            if (isAssigned) return SuccessResponse("Pradesh assigned successfully!");
+
+            return ErrorResponse<string>("Internal issue. Please contact to the support team!");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> OrderList(OrderListDTO data)
+        {
+            var orderList = await _orderService.GetOrderList(data);
+            var count = _orderService.OrderCount(data);
             if (orderList != null && orderList.Any())
-                return SuccessResponse(orderList, "Data retrieved successfully");
+            {
+                var response = new { TotalCount= count, orderList };
+                return SuccessResponse(response, "Data retrieved successfully");
+            }
             else
                 return ErrorResponse<string>("No orders found");
         }
