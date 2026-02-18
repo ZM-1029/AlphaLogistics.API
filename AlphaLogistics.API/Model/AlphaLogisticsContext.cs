@@ -6,6 +6,7 @@ namespace AlphaLogistics.API.Model
     public class AlphaLogisticsContext: DbContext
     {
         public virtual DbSet<ProductMaster> ProductMasters { get; set; }
+        public virtual DbSet<ProductCombo> ProductCombos { get; set; }
         public virtual DbSet<OrderStatusHistory> OrderStatusHistory { get; set; }
         public virtual DbSet<OrderMaster> OrderMasters { get; set; }
 
@@ -35,6 +36,16 @@ namespace AlphaLogistics.API.Model
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ProductCombo>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("ProductCombo_pkey");
+
+                entity.ToTable("ProductCombo");
+
+                entity.Property(e => e.Id).HasIdentityOptions(null, null, null, 9999999999999L, null, null);
+               
+            });
 
             // Configure relationships
             modelBuilder.Entity<UserMaster>()

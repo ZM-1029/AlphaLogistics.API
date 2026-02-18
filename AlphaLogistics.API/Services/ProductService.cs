@@ -1,5 +1,6 @@
 ﻿using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Model;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -136,6 +137,15 @@ namespace AlphaLogistics.API.Services
 
             _context.ProductMasters.Add(product);
             await _context.SaveChangesAsync();
+
+            if (createDto.IsComboType && createDto.ComboProductIds!=null && createDto.ComboProductIds.Any())
+            {
+                foreach (var comboId in createDto.ComboProductIds)
+                {
+                    _context.ProductCombos.Add(new ProductCombo { ParentProductId=product.Id, ComboProductId=comboId});
+                }
+                await _context.SaveChangesAsync();
+            }
 
             if (imageUrls.Any())
             {
@@ -303,7 +313,8 @@ namespace AlphaLogistics.API.Services
                 CreatedAt = product.CreatedAt,
                 LastUpdatedAt = product.LastUpdatedAt,
                 SKU = product.SKU,
-
+                IsComboType = product.IsComboType,
+                ComboProductIds = _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x=>x.ComboProductId).ToList(),
                 VendorId = product.VendorId,
                 VendorName = product.VendorMaster?.VendorName ?? "Unknown Vendor",
 
@@ -430,6 +441,21 @@ namespace AlphaLogistics.API.Services
                 }).ToList();
 
                 _context.ProductImages.AddRange(newProductImages);
+            }
+
+            if (updateDto.IsComboType && updateDto.ComboProductIds != null && updateDto.ComboProductIds.Any())
+            {
+                var existingCombos = await _context.ProductCombos.Where(x => x.ParentProductId == productId).ToListAsync();
+                if (existingCombos != null && existingCombos.Any())
+                { 
+                    _context.RemoveRange(existingCombos);
+
+                }
+                foreach (var comboId in updateDto.ComboProductIds)
+                {
+                    _context.ProductCombos.Add(new ProductCombo { ParentProductId = product.Id, ComboProductId = comboId });
+                }
+               // await _context.SaveChangesAsync();
             }
 
             // Delete specified images

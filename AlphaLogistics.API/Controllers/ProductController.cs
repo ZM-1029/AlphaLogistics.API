@@ -106,6 +106,7 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
+
         // GET: api/product/vendor/{vendorId}
         [HttpGet("{vendorId}")]
         [AllowAnonymous]

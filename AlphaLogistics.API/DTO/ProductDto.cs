@@ -22,7 +22,8 @@ namespace AlphaLogistics.API.DTO
 
         public int SubCategoryId { get; set; }
         public string SubCategoryName { get; set; }
-
+        public bool IsComboType { get; set; }
+        public List<int>? ComboProductIds { get; set; }
         public List<ProductImageDto> ProductImages { get; set; } = new();
     }
 }

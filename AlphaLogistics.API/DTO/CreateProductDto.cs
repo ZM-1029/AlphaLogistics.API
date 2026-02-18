@@ -13,6 +13,8 @@ namespace AlphaLogistics.API.DTO
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal Price { get; set; }
+        public bool IsComboType { get; set; }=false;
+        public List<int>? ComboProductIds { get; set; }
 
         [Required]
         [Range(0, int.MaxValue, ErrorMessage = "Stock quantity cannot be negative")]
@@ -25,4 +27,6 @@ namespace AlphaLogistics.API.DTO
 
         public List<IFormFile>? ProductImages { get; set; }
     }
+
+   
 }

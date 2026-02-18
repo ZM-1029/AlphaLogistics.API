@@ -25,6 +25,8 @@ namespace AlphaLogistics.API.DTO
     {
         public int Id { get; set; }
         public int ProductId { get; set; }
+        public string? ProductSize { get; set; }
+        public string? ProductColour { get; set; }
         public int Quantity { get; set; }
         public decimal? UnitPrice { get; set; }
         

@@ -5,6 +5,8 @@ namespace AlphaLogistics.API.DTO
     public class UpdateProductDto
     {
         public string? ProductName { get; set; }
+        public bool IsComboType { get; set; } = false;
+        public List<int>? ComboProductIds { get; set; }
         public string? Description { get; set; }
 
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]

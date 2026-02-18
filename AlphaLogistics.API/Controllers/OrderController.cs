@@ -39,6 +39,7 @@ namespace AlphaLogistics.API.Controllers
 
             return SuccessResponse(result, "Data retrieved successfully");
         }
+
         [HttpGet]
         public IActionResult PaymentOptions()
         {
@@ -58,6 +59,7 @@ namespace AlphaLogistics.API.Controllers
 
             return SuccessResponse(result, "Data retrieved successfully");
         }
+
         [HttpPost]
         public async Task<IActionResult> PlaceOrder(OrderDTO order)
         {
@@ -67,6 +69,7 @@ namespace AlphaLogistics.API.Controllers
 
             else return ErrorResponse<string>("Error while placing order");
         }
+
         [HttpPatch]
         public async Task<IActionResult> UpdateOrder(int orderId, OrderDTO order)
         {
@@ -77,6 +80,7 @@ namespace AlphaLogistics.API.Controllers
             return ErrorResponse<string>("Error while updating the order!");
 
         }
+
         [HttpPost]
         public async Task<IActionResult> AssignPradesh(int pradeshId, int orderId)
         {

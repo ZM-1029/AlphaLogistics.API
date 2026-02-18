@@ -12,6 +12,7 @@ namespace AlphaLogistics.API.Model
         [ForeignKey("SubCategoryMaster")]
         public int SubCategoryId { get; set; }
         public string ProductName { get; set; }
+        public bool IsComboType { get; set; }
         public string? SKU { get; set; }
         public string Description { get; set; }
         public decimal Price { get; set; }

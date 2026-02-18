@@ -76,8 +76,17 @@ namespace AlphaLogistics.API.Services
 
                 var response = (dynamic)new
                 {
+                    order.Id,
                     OrderNumber = order.OrderNumber,
                     TotalAmount = order.TotalAmount,
+                    order.PradeshId,
+                    order.DeliveryAddress,
+                    order.Branch,
+                    order.CourierPartner,
+                    order.DeliveryType,
+                    order.DeliveryInstuctions,
+                    order.Remark,
+                    order.DeliveryCharge,
                     OrderItems = order?.OrderItems?.Select(item => new
                     {
                         Id = item.Id,
@@ -85,16 +94,20 @@ namespace AlphaLogistics.API.Services
                         Product = new
                         {
                             item.ProductMaster?.Id,
+                            item.ProductMaster?.SKU,
                             item.ProductMaster?.ProductName,
                             item.ProductMaster?.ProductImages?.FirstOrDefault()?.ImageUrl,
                             item.ProductMaster?.SubCategoryId,
+                            item.ProductColour,
+                            item.ProductSize,
                             SubcategoryName = subCategory.FirstOrDefault(x => x.Id == item.ProductMaster?.SubCategoryId)?.Name,
                             CategoryId = subCategory.FirstOrDefault(x => x.Id == item.ProductMaster?.SubCategoryId)?.CategoryId,
                             CategoryName = category.FirstOrDefault(x => x.Id == subCategory.FirstOrDefault(s => s.Id == item.ProductMaster?.SubCategoryId)?.CategoryId)?.Name,
                         },
 
                         Quantity = item.Quantity,
-                        UnitPrice = item.UnitPrice
+                        UnitPrice = item.UnitPrice,
+
                     }).ToList()
                 };
 
@@ -236,7 +249,8 @@ namespace AlphaLogistics.API.Services
                     DeliveryType = order.DeliveryType,
                     DeliveryInstuctions = order.DeliveryInstuctions,
                     Remark = order.Remark,
-                    PradeshId = order.PradeshId,                           
+                    PradeshId = order.PradeshId,  
+                    
                 };
 
                 using (var transaction = await _context.Database.BeginTransactionAsync())
@@ -251,7 +265,9 @@ namespace AlphaLogistics.API.Services
                             OrderId = orderData.Id,
                             ProductId = item.ProductId,
                             Quantity = item.Quantity,
-                            UnitPrice = item.UnitPrice ?? 0
+                            UnitPrice = item.UnitPrice ?? 0,
+                            ProductColour=item.ProductColour,
+                            ProductSize = item.ProductSize,
                         };
 
                         _context.OrderItems.Add(orderItem);
@@ -324,7 +340,9 @@ namespace AlphaLogistics.API.Services
                             OrderId = existingOrder.Id,
                             ProductId = item.ProductId,
                             Quantity = item.Quantity,
-                            UnitPrice = item.UnitPrice ?? 0
+                            UnitPrice = item.UnitPrice ?? 0,
+                            ProductSize=item.ProductSize,
+                            ProductColour=item.ProductColour,
                         };
 
                         _context.OrderItems.Add(orderItem);
@@ -464,7 +482,7 @@ namespace AlphaLogistics.API.Services
                         : "Unknown"
                 }).ToList();
 
-
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
                 // Create Excel package
                 using var package = new ExcelPackage();
                 var worksheet = package.Workbook.Worksheets.Add("Orders Report");
