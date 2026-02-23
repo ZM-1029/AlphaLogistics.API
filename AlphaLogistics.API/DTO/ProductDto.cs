@@ -13,7 +13,6 @@ namespace AlphaLogistics.API.DTO
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }
 
-
         public int VendorId { get; set; }
         public string VendorName { get; set; }
 
@@ -23,7 +22,14 @@ namespace AlphaLogistics.API.DTO
         public int SubCategoryId { get; set; }
         public string SubCategoryName { get; set; }
         public bool IsComboType { get; set; }
-        public List<int>? ComboProductIds { get; set; }
+        //public List<int>? ComboProductIds { get; set; }
+        public List<ComboDTO>? ComboProducts { get; set; }
         public List<ProductImageDto> ProductImages { get; set; } = new();
+    }
+
+    public class ComboDTO
+    { 
+        public int Id { get; set; }
+        public string Name { get; set; }
     }
 }

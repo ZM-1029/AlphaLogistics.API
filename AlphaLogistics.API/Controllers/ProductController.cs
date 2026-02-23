@@ -106,6 +106,23 @@ namespace AlphaLogistics.API.Controllers
             }
         }
 
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetActiveProducts()
+        {
+            try
+            {
+                var result = await _productService.GetActiveProduct();
+                if (result == null) return NoContentResponse<string>("No active or approved product found");
+                return SuccessResponse(result,"Product retrieved successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all products");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
         // GET: api/product/vendor/{vendorId}
         [HttpGet("{vendorId}")]
         [AllowAnonymous]

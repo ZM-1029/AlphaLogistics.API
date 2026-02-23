@@ -6,7 +6,8 @@ namespace AlphaLogistics.API.Services
     public interface IUserService
     {
         // User operations
-
+        public  Task<dynamic> GetActiveUsers();
+        public Task<dynamic> GetActiveVendor();
         public Task<object> ActiveRoles();
         public  Task<int> UserCount(int? roleId);
         public  Task<dynamic> GetCustomerByIdAsync(int customerId);

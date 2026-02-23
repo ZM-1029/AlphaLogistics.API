@@ -1,10 +1,13 @@
 ﻿using AlphaLogistics.API.DTO;
+using Microsoft.EntityFrameworkCore;
 
 namespace AlphaLogistics.API.Services
 {
     public interface IProductService
     {
         // Product CRUD
+        public  Task<dynamic> GetActiveProduct();
+       
         Task<bool> BulkApproveProducts(List<int> producIds);
         public Task<SubCategoryDto> UpdateSubCategoryAsync(CreateSubCategoryDto createDto);
         public Task<CategoryDto> UpdateCategoryAsync(CreateCategoryDto createDto);

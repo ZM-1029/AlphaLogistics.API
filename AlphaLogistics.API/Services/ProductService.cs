@@ -182,7 +182,12 @@ namespace AlphaLogistics.API.Services
 
             return ConvertToProductDto(product);
         }
-
+        public async Task<dynamic> GetActiveProduct()
+        {
+            var productList = await _context.ProductMasters.Where(x => x.IsActive && x.IsApproved).ToListAsync();
+            var result = productList.Select(x => new { Id=x.Id,Name=x.ProductName,SKU=x.SKU});
+            return result;
+        }
         // Get All Products
         public async Task<ProductListResponseDto> GetAllProductsAsync(ProductQueryDto dto)
         {
@@ -199,12 +204,17 @@ namespace AlphaLogistics.API.Services
                 .Include(p => p.ProductImages) // Include product images
                 .AsQueryable();
 
+
+
             // Apply filters
             /*if (dto.isActive!=null && dto.isActive.HasValue)
             {
                 query = query.Where(p => p.IsActive == dto.isActive.Value);
             }*/
-
+            if (dto.IsComboType.HasValue)
+            {
+                query = query.Where(p => p.IsComboType ==dto.IsComboType);
+            }
             if (dto.categoryId.HasValue && dto.categoryId>0)
             {
                 query = query.Where(p => p.SubCategoryMaster != null &&
@@ -319,7 +329,9 @@ namespace AlphaLogistics.API.Services
                 LastUpdatedAt = product.LastUpdatedAt,
                 SKU = product.SKU,
                 IsComboType = product.IsComboType,
-                ComboProductIds = _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x=>x.ComboProductId).ToList(),
+                //ComboProductIds = _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x=>x.ComboProductId).ToList(),
+                ComboProducts= _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x =>new ComboDTO { Id=x.ComboProductId,
+                    Name=_context.ProductMasters.FirstOrDefault(x=>x.Id==x.Id)!.ProductName }).ToList(),
                 VendorId = product.VendorId,
                 VendorName = product.VendorMaster?.VendorName ?? "Unknown Vendor",
 

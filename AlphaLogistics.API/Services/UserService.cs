@@ -1011,7 +1011,18 @@ namespace AlphaLogistics.API.Services
                 HasNext = dto.Page < totalPages
             };
         }
-
+        public async Task<dynamic> GetActiveVendor()
+        {
+            var vendorList = await _context.VendorMasters.Where(x => x.IsActive && x.IsApproved).ToListAsync();
+            var result = vendorList.Select(x => new { Id = x.Id, Name = x.VendorName });
+            return result;
+        }
+        public async Task<dynamic> GetActiveUsers()
+        {
+            var userList = await _context.UserMasters.Where(x => x.IsActive && x.RoleId==AppConstants.UserRole.Customer).ToListAsync();
+            var result = userList.Select(x => new { Id = x.Id, Name = x.UserName });
+            return result;
+        }
         public async Task<bool> LogoutAsync(HttpContext httpContext)
         {
             await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

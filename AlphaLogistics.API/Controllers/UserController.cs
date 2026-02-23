@@ -328,7 +328,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Admin")]
+        [Authorize(Policy = "Admin,SuperAdmin")]
         public async Task<IActionResult> GetAllVendors([FromBody] VendorQueryDto query)
         {
             try
@@ -341,6 +341,40 @@ namespace AlphaLogistics.API.Controllers
             {
                 _logger.LogError(ex, "Error getting vendors");
                 return ConflictResponse<string>(ex.Message); 
+            }
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetActiveVendor()
+        {
+            try
+            {
+                var result = await _userService.GetActiveVendor();
+                if (result == null) return NoContentResponse<string>("No active or approved vendor found");
+                return SuccessResponse(result, "vendor retrieved successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all products");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetActiveUser()
+        {
+            try
+            {
+                var result = await _userService.GetActiveUsers();
+                if (result == null) return NoContentResponse<string>("No active user found");
+                return SuccessResponse(result, "User retrieved successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all products");
+                return ErrorResponse<string>(ex.Message);
             }
         }
 
