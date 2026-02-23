@@ -359,7 +359,7 @@ namespace AlphaLogistics.API.Services
             var user = await _context.UserMasters
                 .Include(u => u.RoleMaster)
                 .Include(u => u.VendorMaster)
-                .FirstOrDefaultAsync(u => u.Email == loginDto.Email && u.IsActive);
+                .FirstOrDefaultAsync(u => u.Email!=null &&  u.Email.Trim().ToLower() == loginDto.Email.Trim().ToLower() && u.IsActive);
 
             if (user != null && user.VendorMaster?.IsApproved == false)
             {

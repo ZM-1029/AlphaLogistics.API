@@ -3,6 +3,7 @@
     public class OrderListDTO
     {
         public int? userId { get; set; }
+        public int? VendorId { get; set; }
         public DateTime? from { get; set; }
         public DateTime? to { get; set; }
         public int? statusId { get; set; }

@@ -11,6 +11,7 @@ namespace AlphaLogistics.API.DTO
           // public bool? isActive { get; set; } = null;
 
            public int? categoryId { get; set; } = null;
+           public int? VendorId { get; set; } = null;
 
            public int? subCategoryId { get; set; } = null;
 

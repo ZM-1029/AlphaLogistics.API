@@ -146,8 +146,20 @@ namespace AlphaLogistics.API.Services
         public async Task<List<dynamic>?> GetOrderList(OrderListDTO data)
         {
             try 
-            { 
-                var orders = await _context.OrderMasters.ToListAsync();
+            {
+                var query = _context.OrderMasters
+                         .Include(o => o.OrderItems)
+                             .ThenInclude(oi => oi.ProductMaster)
+                         .AsQueryable();
+
+                                    if (data.VendorId.HasValue && data.VendorId > 0)
+                                    {
+                                        query = query.Where(o => o.OrderItems!
+                                            .Any(oi => oi.ProductMaster != null
+                                                    && oi.ProductMaster.VendorId == data.VendorId.Value));
+                                    }
+
+                var orders = await query.ToListAsync();
 
                 if (data.userId != null && data.userId>0)
                 { 

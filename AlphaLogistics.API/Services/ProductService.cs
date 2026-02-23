@@ -126,6 +126,7 @@ namespace AlphaLogistics.API.Services
                 VendorId = VendorId,
                 SKU = $"SKU-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                 SubCategoryId = createDto.SubCategoryId,
+                IsComboType=createDto.IsComboType,
                 ProductName = createDto.ProductName,
                 Description = createDto.Description,
                 Price = createDto.Price,
@@ -208,6 +209,10 @@ namespace AlphaLogistics.API.Services
             {
                 query = query.Where(p => p.SubCategoryMaster != null &&
                                         p.SubCategoryMaster.CategoryId == dto.categoryId.Value);
+            }
+            if (dto.VendorId.HasValue && dto.VendorId > 0)
+            {
+                query = query.Where(p =>p.VendorId== dto.VendorId.Value);
             }
 
             if (dto.subCategoryId.HasValue && dto.subCategoryId>0)
@@ -427,6 +432,8 @@ namespace AlphaLogistics.API.Services
 
             if (updateDto.IsActive.HasValue)
                 product.IsActive = updateDto.IsActive.Value;
+
+            product.IsComboType = updateDto.IsComboType;
 
             product.LastUpdatedAt = DateTime.UtcNow;
             product.IsApproved = false; // Mark as unapproved after update
