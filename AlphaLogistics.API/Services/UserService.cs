@@ -23,15 +23,12 @@ namespace AlphaLogistics.API.Services
             _environment = environment;
             _httpContextAccessor = httpContextAccessor;
         }
-
-
         public async Task<object> ActiveRoles()
         { 
             var roles=await _context.RoleMasters.Where(x=>x.Id!=AppConstants.UserRole.Vendor).ToListAsync();
 
             return roles.Select(x => new { x.Id,Name=x.Name}).OrderBy(x=>x.Name);
         }
-
         public List<PradeshMaster> GetActivePradeshList()
         { 
             var pradeshList=_context.PradeshMasters             
@@ -66,7 +63,6 @@ namespace AlphaLogistics.API.Services
 
             return $"/uploads/profiles/{uniqueFileName}";
         }
-        
         private UserResponseDto ConvertToUserResponseDto(UserMaster user)
         {
             var response = new UserResponseDto
@@ -84,7 +80,6 @@ namespace AlphaLogistics.API.Services
 
             return response;
         }
-
         public async Task<UserResponseDto> RegisterUserAsync(RegisterUserDto registerDto)
         {
            
