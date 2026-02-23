@@ -13,6 +13,7 @@ namespace AlphaLogistics.API.DTO
         [Required]
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal Price { get; set; }
+        public decimal? CostPrice { get; set; }
         public bool IsComboType { get; set; }=false;
         public List<int>? ComboProductIds { get; set; }
 

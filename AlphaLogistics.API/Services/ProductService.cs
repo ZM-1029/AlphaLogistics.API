@@ -133,6 +133,7 @@ namespace AlphaLogistics.API.Services
                 StockQuantity = createDto.StockQuantity,
                 CreatedAt = DateTime.UtcNow,
                 LastUpdatedAt = DateTime.UtcNow,
+                CostPrice= createDto.CostPrice,
                 IsActive = true
             };
 
@@ -340,7 +341,7 @@ namespace AlphaLogistics.API.Services
 
                 CategoryId = product.SubCategoryMaster?.CategoryId ?? 0,
                 CategoryName = product.SubCategoryMaster?.CategoryMaster?.Name ?? "Unknown Category",
-
+                CostPrice= product.CostPrice,
                 ProductImages = product.ProductImages?.Select(pi => new ProductImageDto
                 {
                     Id = pi.Id,
@@ -446,7 +447,7 @@ namespace AlphaLogistics.API.Services
                 product.IsActive = updateDto.IsActive.Value;
 
             product.IsComboType = updateDto.IsComboType;
-
+            product.CostPrice= updateDto.CostPrice;
             product.LastUpdatedAt = DateTime.UtcNow;
             product.IsApproved = false; // Mark as unapproved after update
             // Handle images

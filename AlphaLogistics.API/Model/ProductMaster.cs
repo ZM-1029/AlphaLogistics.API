@@ -16,6 +16,7 @@ namespace AlphaLogistics.API.Model
         public string? SKU { get; set; }
         public string Description { get; set; }
         public decimal Price { get; set; }
+        public decimal? CostPrice { get; set; }
         public int StockQuantity { get; set; } 
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }

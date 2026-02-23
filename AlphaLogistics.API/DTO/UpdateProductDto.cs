@@ -14,6 +14,7 @@ namespace AlphaLogistics.API.DTO
 
         [Range(0, int.MaxValue, ErrorMessage = "Stock quantity cannot be negative")]
         public int? StockQuantity { get; set; }
+        public decimal? CostPrice { get; set; }
 
         public int? SubCategoryId { get; set; }
         public bool? IsActive { get; set; }
