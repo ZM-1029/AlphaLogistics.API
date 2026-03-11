@@ -1,4 +1,4 @@
-﻿using AlphaLogistics.API.DTO;
+using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -124,7 +124,7 @@ namespace AlphaLogistics.API.Services
         {
             var orders = await _context.OrderMasters.ToListAsync();
 
-            if (data.userId != null)
+            if (data.userId != null && data.userId>0)
             {
                 orders = orders.Where(x => x.UserId == data.userId).ToList();
             }
@@ -136,7 +136,7 @@ namespace AlphaLogistics.API.Services
                 orders = orders.Where(x => x.OrderDate.Date >= data.from.Value.Date && x.OrderDate.Date <= data.to.Value.Date).ToList();
             }
 
-            if (data.statusId.HasValue)
+            if (data.statusId.HasValue && data.statusId>0)
             {
                 orders = orders.Where(x => x.Status == data.statusId).ToList();
             }
@@ -621,6 +621,32 @@ namespace AlphaLogistics.API.Services
             }
 
             return null;
+        }
+
+        public async Task<DeliveryLabelDto?> GetDeliveryLabelData(int orderId)
+        {
+            var order = await _context.OrderMasters
+                .Include(o => o.UserMaster)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+            if (order == null) return null;
+
+            string pradeshName = "";
+            if (order.PradeshId.HasValue)
+            {
+                var pradesh = await _context.PradeshMasters
+                    .FirstOrDefaultAsync(p => p.Id == order.PradeshId.Value);
+                pradeshName = pradesh?.Name ?? "";
+            }
+
+            return new DeliveryLabelDto
+            {
+                OrderNumber = order.OrderNumber ?? "",
+                CustomerName = order.UserMaster?.UserName ?? "",
+                Phone = order.UserMaster?.Phone ?? "",
+                Address = order.DeliveryAddress ?? order.UserMaster?.Address ?? "",
+                Pradesh = pradeshName,
+                DeliveryInstruction = order.DeliveryInstuctions ?? ""
+            };
         }
     }
 }

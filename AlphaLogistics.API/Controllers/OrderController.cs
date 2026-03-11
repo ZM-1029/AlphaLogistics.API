@@ -1,7 +1,8 @@
-﻿using AlphaLogistics.API.DTO;
+using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Data;
 using WALMS.API.Controllers;
@@ -94,7 +95,7 @@ namespace AlphaLogistics.API.Controllers
         public async Task<IActionResult> OrderList(OrderListDTO data)
         {
             var orderList = await _orderService.GetOrderList(data);
-            var count = _orderService.OrderCount(data);
+            var count = await _orderService.OrderCount(data);
             if (orderList != null && orderList.Any())
             {
                 var response = new { TotalCount= count, orderList };
@@ -153,6 +154,81 @@ namespace AlphaLogistics.API.Controllers
             else return Ok(new { Status = false, Message = "No sku found with provided name" });
         }
 
+        /// <summary>
+        /// Returns a printable delivery label (HTML page) for an order. Open in browser and print.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> PrintDeliveryLabel(int orderId)
+        {
+            var label = await _orderService.GetDeliveryLabelData(orderId);
+            if (label == null)
+                return ErrorResponse<string>("Order not found");
+
+            var html = BuildDeliveryLabelHtml(label);
+            return Content(html, "text/html");
+        }
+
+        private static string BuildDeliveryLabelHtml(DeliveryLabelDto dto)
+        {
+            string Esc(string? s) => string.IsNullOrEmpty(s) ? "—" : System.Net.WebUtility.HtmlEncode(s);
+            return $@"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+  <meta charset=""utf-8"" />
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1"" />
+  <title>Delivery Label - {Esc(dto.OrderNumber)}</title>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 16px; background: #f5f5f5; }}
+    @media print {{ body {{ background: #fff; padding: 0; }} .no-print {{ display: none; }} }}
+    .label {{ max-width: 420px; margin: 0 auto; background: #fff; border: 2px solid #1a1a1a; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+    .label-header {{ background: #1a1a1a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }} 
+    .label-body {{ padding: 20px 16px; }}
+    .label-row {{ margin-bottom: 14px; }}
+    .label-row:last-child {{ margin-bottom: 0; }}
+    .label-key {{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #666; margin-bottom: 2px; }}
+    .label-val {{ font-size: 15px; font-weight: 500; color: #111; word-break: break-word; }}
+    .instruction {{ border-top: 1px dashed #ccc; padding-top: 14px; margin-top: 14px; }}
+    .print-btn {{ display: block; max-width: 420px; margin: 16px auto 0; padding: 10px 20px; background: #1a1a1a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }}
+    .print-btn:hover {{ background: #333; }}
+  </style>
+</head>
+<body>
+  <div class=""label"">
+    <div class=""label-header"">DELIVERY LABEL</div>
+    <div class=""label-body"">
+      <div class=""label-row"">
+        <div class=""label-key"">Order Number</div>
+        <div class=""label-val"">{Esc(dto.OrderNumber)}</div>
+      </div>
+      <div class=""label-row"">
+        <div class=""label-key"">Name</div>
+        <div class=""label-val"">{Esc(dto.CustomerName)}</div>
+      </div>
+      <div class=""label-row"">
+        <div class=""label-key"">Phone</div>
+        <div class=""label-val"">{Esc(dto.Phone)}</div>
+      </div>
+      <div class=""label-row"">
+        <div class=""label-key"">Address</div>
+        <div class=""label-val"">{Esc(dto.Address)}</div>
+      </div>
+      <div class=""label-row"">
+        <div class=""label-key"">Pradesh</div>
+        <div class=""label-val"">{Esc(dto.Pradesh)}</div>
+      </div>
+      <div class=""label-row instruction"">
+        <div class=""label-key"">Delivery Instruction</div>
+        <div class=""label-val"">{Esc(dto.DeliveryInstruction)}</div>
+      </div>
+    </div>
+  </div>
+  <button type=""button"" class=""print-btn no-print"" onclick=""window.print()"">Print Label</button>
+  <script>window.onload = function() {{ /* optional: auto-print prompt */ }};</script>
+</body>
+</html>";
+        }
+
         [HttpGet]
         public async Task<IActionResult> ExportOrdersToExcel(int? userId, DateTime? from, DateTime? to, int? statusId)
         {
@@ -167,5 +243,42 @@ namespace AlphaLogistics.API.Controllers
                 return ErrorResponse<string>("No orders found to export");
             }
         }
+
+        #region Payment APIs
+
+        [HttpGet]
+        public async Task<IActionResult> CreateBankTransferProcess(bool isBanTransfer)
+        {
+
+            if (isBanTransfer)
+            {    
+                var BankDetails = new BankAccountDetails
+                {
+                    BankName = _configuration["BankTransfer:BankName"],
+                    AccountHolderName = _configuration["BankTransfer:AccountHolderName"],
+                    AccountNumber = _configuration["BankTransfer:AccountNumber"],
+                    Branch = _configuration["BankTransfer:Branch"],
+                };
+
+                return Ok(new
+                {
+                    bankInstructions = BankDetails,
+                    message = "Please transfer the amount and send payment confirmation"
+                });
+
+            }
+            else
+            {
+                // QR transfer insruction
+                return Ok(new
+                {
+                    QRCodeUrl = "/uploads/payment/0efb7098-1072-496a-8048-615471dbb0ee_Jack",
+                    message = "Please scan the QR and send payment confirmation"
+                });
+
+            }
+        }
+
+        #endregion
     }
 }

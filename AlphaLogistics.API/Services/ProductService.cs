@@ -1,4 +1,4 @@
-﻿using AlphaLogistics.API.DTO;
+using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Model;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +52,14 @@ namespace AlphaLogistics.API.Services
         }
 
         // Helper method to delete image file
+        /// <summary>Normalizes colours to comma-separated form (e.g. "Red, Blue" -> "Red,Blue").</summary>
+        private static string? NormalizeColours(string? colours)
+        {
+            if (string.IsNullOrWhiteSpace(colours)) return null;
+            var list = colours.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return list.Length == 0 ? null : string.Join(",", list);
+        }
+
         private void DeleteImageFile(string imageUrl)
         {
             if (string.IsNullOrEmpty(imageUrl))
@@ -131,6 +139,8 @@ namespace AlphaLogistics.API.Services
                 Description = createDto.Description,
                 Price = createDto.Price,
                 StockQuantity = createDto.StockQuantity,
+                Colours = NormalizeColours(createDto.Colours),
+                Size = string.IsNullOrWhiteSpace(createDto.Size) ? null : createDto.Size.Trim(),
                 CreatedAt = DateTime.UtcNow,
                 LastUpdatedAt = DateTime.UtcNow,
                 CostPrice= createDto.CostPrice,
@@ -186,7 +196,7 @@ namespace AlphaLogistics.API.Services
         public async Task<dynamic> GetActiveProduct()
         {
             var productList = await _context.ProductMasters.Where(x => x.IsActive && x.IsApproved).ToListAsync();
-            var result = productList.Select(x => new { Id=x.Id,Name=x.ProductName,SKU=x.SKU});
+            var result = productList.Select(x => new { Id = x.Id, Name = x.ProductName, SKU = x.SKU, Colours = x.Colours, Size = x.Size });
             return result;
         }
         // Get All Products
@@ -239,6 +249,22 @@ namespace AlphaLogistics.API.Services
             if (dto.maxPrice.HasValue && dto.maxPrice > 0)
             {
                 query = query.Where(p => p.Price <= dto.maxPrice.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.colour))
+            {
+                var colourFilter = dto.colour.Trim();
+                query = query.Where(p => p.Colours != null && (
+                    p.Colours == colourFilter ||
+                    p.Colours.StartsWith(colourFilter + ",") ||
+                    p.Colours.EndsWith("," + colourFilter) ||
+                    p.Colours.Contains("," + colourFilter + ",")));
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.size))
+            {
+                var sizeFilter = dto.size.Trim();
+                query = query.Where(p => p.Size != null && p.Size == sizeFilter);
             }
 
             // Global search across multiple fields
@@ -330,6 +356,7 @@ namespace AlphaLogistics.API.Services
                 LastUpdatedAt = product.LastUpdatedAt,
                 SKU = product.SKU,
                 IsComboType = product.IsComboType,
+                IsApproved = product.IsApproved,
                 //ComboProductIds = _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x=>x.ComboProductId).ToList(),
                 ComboProducts= _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x =>new ComboDTO { Id=x.ComboProductId,
                     Name=_context.ProductMasters.FirstOrDefault(x=>x.Id==x.Id)!.ProductName }).ToList(),
@@ -342,6 +369,8 @@ namespace AlphaLogistics.API.Services
                 CategoryId = product.SubCategoryMaster?.CategoryId ?? 0,
                 CategoryName = product.SubCategoryMaster?.CategoryMaster?.Name ?? "Unknown Category",
                 CostPrice= product.CostPrice,
+                Colours = product.Colours,
+                Size = product.Size,
                 ProductImages = product.ProductImages?.Select(pi => new ProductImageDto
                 {
                     Id = pi.Id,
@@ -448,6 +477,10 @@ namespace AlphaLogistics.API.Services
 
             product.IsComboType = updateDto.IsComboType;
             product.CostPrice= updateDto.CostPrice;
+            if (updateDto.Colours != null)
+                product.Colours = NormalizeColours(updateDto.Colours);
+            if (updateDto.Size != null)
+                product.Size = string.IsNullOrWhiteSpace(updateDto.Size) ? null : updateDto.Size.Trim();
             product.LastUpdatedAt = DateTime.UtcNow;
             product.IsApproved = false; // Mark as unapproved after update
             // Handle images
@@ -680,19 +713,33 @@ namespace AlphaLogistics.API.Services
                 .OrderBy(c => c.Name)
                 .ToListAsync();
 
-            return categories.Select(c => new CategoryDto
+            var productCountBySubCategoryId = await _context.ProductMasters
+                .GroupBy(p => p.SubCategoryId)
+                .Select(g => new { SubCategoryId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SubCategoryId, x => x.Count);
+
+            return categories.Select(c =>
             {
-                Id = c.Id,
-                Name = c.Name,
-                Description = c.Description,
-                SubCategories = c.SubCategoryMasters?.Select(sc => new SubCategoryDto
+                var subCategoryDtos = c.SubCategoryMasters?.Select(sc => new SubCategoryDto
                 {
                     Id = sc.Id,
                     Name = sc.Name,
                     Description = sc.Description,
                     CategoryId = sc.CategoryId,
-                    CategoryName = c.Name
-                }).ToList()
+                    CategoryName = c.Name,
+                    ProductCount = productCountBySubCategoryId.TryGetValue(sc.Id, out var subCount) ? subCount : 0
+                }).ToList() ?? new List<SubCategoryDto>();
+
+                var categoryProductCount = subCategoryDtos.Sum(sc => sc.ProductCount);
+
+                return new CategoryDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Description = c.Description,
+                    SubCategories = subCategoryDtos,
+                    ProductCount = categoryProductCount
+                };
             }).ToList();
         }
 
@@ -703,13 +750,19 @@ namespace AlphaLogistics.API.Services
                 .OrderBy(sc => sc.Name)
                 .ToListAsync();
 
+            var productCountBySubCategoryId = await _context.ProductMasters
+                .GroupBy(p => p.SubCategoryId)
+                .Select(g => new { SubCategoryId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SubCategoryId, x => x.Count);
+
             return subCategories.Select(sc => new SubCategoryDto
             {
                 Id = sc.Id,
                 Name = sc.Name,
                 Description = sc.Description,
                 CategoryId = sc.CategoryId,
-                CategoryName = sc.CategoryMaster?.Name ?? string.Empty
+                CategoryName = sc.CategoryMaster?.Name ?? string.Empty,
+                ProductCount = productCountBySubCategoryId.TryGetValue(sc.Id, out var count) ? count : 0
             }).ToList();
         }
 
@@ -722,19 +775,30 @@ namespace AlphaLogistics.API.Services
             if (category == null)
                 throw new Exception("Category not found");
 
+            var subCategoryIds = category.SubCategoryMasters?.Select(sc => sc.Id).ToList() ?? new List<int>();
+            var productCountBySubCategoryId = await _context.ProductMasters
+                .Where(p => subCategoryIds.Contains(p.SubCategoryId))
+                .GroupBy(p => p.SubCategoryId)
+                .Select(g => new { SubCategoryId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SubCategoryId, x => x.Count);
+
+            var subCategoryDtos = category.SubCategoryMasters?.Select(sc => new SubCategoryDto
+            {
+                Id = sc.Id,
+                Name = sc.Name,
+                Description = sc.Description,
+                CategoryId = sc.CategoryId,
+                CategoryName = category.Name,
+                ProductCount = productCountBySubCategoryId.TryGetValue(sc.Id, out var subCount) ? subCount : 0
+            }).ToList() ?? new List<SubCategoryDto>();
+
             return new CategoryDto
             {
                 Id = category.Id,
                 Name = category.Name,
                 Description = category.Description,
-                SubCategories = category.SubCategoryMasters?.Select(sc => new SubCategoryDto
-                {
-                    Id = sc.Id,
-                    Name = sc.Name,
-                    Description = sc.Description,
-                    CategoryId = sc.CategoryId,
-                    CategoryName = category.Name
-                }).ToList()
+                SubCategories = subCategoryDtos,
+                ProductCount = subCategoryDtos.Sum(sc => sc.ProductCount)
             };
         }
 
@@ -753,7 +817,8 @@ namespace AlphaLogistics.API.Services
                 Name = subCategory.Name,
                 Description = subCategory.Description,
                 CategoryId = subCategory.CategoryId,
-                CategoryName = subCategory.CategoryMaster?.Name ?? string.Empty
+                CategoryName = subCategory.CategoryMaster?.Name ?? string.Empty,
+                ProductCount = await _context.ProductMasters.CountAsync(p => p.SubCategoryId == subCategoryId)
             };
         }
 

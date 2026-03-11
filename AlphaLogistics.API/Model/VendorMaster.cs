@@ -9,9 +9,7 @@ namespace AlphaLogistics.API.Model
             public int Id { get; set; }
 
             [ForeignKey("UserMaster")]
-            public int UserId { get; set; }
-
-           
+            public int UserId { get; set; }       
             public string VendorName { get; set; } 
             public string? Reason { get; set; } 
             public string ContactPerson { get; set; }

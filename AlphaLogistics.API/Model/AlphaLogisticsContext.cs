@@ -137,9 +137,9 @@ namespace AlphaLogistics.API.Model
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
-            modelBuilder.Entity<UserMaster>()
+/*            modelBuilder.Entity<UserMaster>()
                 .HasIndex(u => u.UserName)
-                .IsUnique();
+                .IsUnique();*/
 
             modelBuilder.Entity<VendorMaster>()
                 .HasIndex(v => v.PAN)

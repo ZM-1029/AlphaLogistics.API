@@ -1,4 +1,4 @@
-﻿using AlphaLogistics.API.DTO;
+using AlphaLogistics.API.DTO;
 
 namespace AlphaLogistics.API.Services
 {
@@ -16,7 +16,6 @@ namespace AlphaLogistics.API.Services
         public Task<bool> CancelOrder(int orderId);
         public  Task<dynamic> OrderTrackingData(int orderId);
         public  Task<byte[]> ExportOrdersToExcelAsync(int? userId, DateTime? from, DateTime? to, int? statusId);
-
-
+        public Task<DeliveryLabelDto?> GetDeliveryLabelData(int orderId);
     }
 }

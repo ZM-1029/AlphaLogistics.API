@@ -1,4 +1,4 @@
-﻿
+
 namespace AlphaLogistics.API.DTO
 {
     public class ProductDto
@@ -17,7 +17,7 @@ namespace AlphaLogistics.API.DTO
 
         public int VendorId { get; set; }
         public string VendorName { get; set; }
-
+        public bool IsApproved { get; set; }
         public int CategoryId { get; set; }
         public string CategoryName { get; set; }
 
@@ -26,6 +26,10 @@ namespace AlphaLogistics.API.DTO
         public bool IsComboType { get; set; }
         //public List<int>? ComboProductIds { get; set; }
         public List<ComboDTO>? ComboProducts { get; set; }
+        /// <summary>Colours as comma-separated string (e.g. Red,Blue,Green).</summary>
+        public string? Colours { get; set; }
+        /// <summary>Product size (e.g. S, M, L, XL).</summary>
+        public string? Size { get; set; }
         public List<ProductImageDto> ProductImages { get; set; } = new();
     }
 

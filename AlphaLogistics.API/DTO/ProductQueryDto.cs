@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AlphaLogistics.API.DTO
 {
@@ -20,6 +20,12 @@ namespace AlphaLogistics.API.DTO
            public decimal? minPrice { get; set; } = null;
 
            public decimal? maxPrice { get; set; } = null;
+
+           /// <summary>Filter by colour (matches if product Colours contains this value as a comma-separated segment).</summary>
+           public string? colour { get; set; } = null;
+
+           /// <summary>Filter by size (exact match on product Size).</summary>
+           public string? size { get; set; } = null;
 
            public string? sortBy { get; set; } = "createdAt";
 

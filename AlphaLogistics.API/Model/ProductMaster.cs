@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AlphaLogistics.API.Model
@@ -17,7 +17,11 @@ namespace AlphaLogistics.API.Model
         public string Description { get; set; }
         public decimal Price { get; set; }
         public decimal? CostPrice { get; set; }
-        public int StockQuantity { get; set; } 
+        public int StockQuantity { get; set; }
+        /// <summary>Comma-separated list of colours (e.g. Red,Blue,Green).</summary>
+        public string? Colours { get; set; }
+        /// <summary>Product size (e.g. S, M, L, XL).</summary>
+        public string? Size { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastUpdatedAt { get; set; }
         public bool IsActive { get; set; } = true;

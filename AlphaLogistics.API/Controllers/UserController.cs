@@ -328,7 +328,7 @@ namespace AlphaLogistics.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "Admin,SuperAdmin")]
+        //[Authorize(Policy = "Admin,SuperAdmin")]
         public async Task<IActionResult> GetAllVendors([FromBody] VendorQueryDto query)
         {
             try

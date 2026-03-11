@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace AlphaLogistics.API.DTO
 {
@@ -25,6 +25,11 @@ namespace AlphaLogistics.API.DTO
         public int SubCategoryId { get; set; }
 
         public int? VendorId { get; set; }
+
+        /// <summary>Colours as comma-separated string (e.g. Red,Blue,Green).</summary>
+        public string? Colours { get; set; }
+        /// <summary>Product size (e.g. S, M, L, XL).</summary>
+        public string? Size { get; set; }
 
         public List<IFormFile>? ProductImages { get; set; }
     }

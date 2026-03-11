@@ -1,8 +1,9 @@
-﻿using AlphaLogistics.API.DTO;
+using AlphaLogistics.API.DTO;
 using AlphaLogistics.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using WALMS.API.Controllers;
 
 namespace AlphaLogistics.API.Controllers
@@ -14,11 +15,13 @@ namespace AlphaLogistics.API.Controllers
     {
         private readonly IProductService _productService;
         private readonly ILogger<ProductController> _logger;
+        private readonly IConfiguration _configuration;
 
-        public ProductController(IProductService productService, ILogger<ProductController> logger)
+        public ProductController(IProductService productService, ILogger<ProductController> logger, IConfiguration configuration)
         {
             _productService = productService;
             _logger = logger;
+            _configuration = configuration;
         }
 
         #region Product APIs
@@ -273,6 +276,28 @@ namespace AlphaLogistics.API.Controllers
                 _logger.LogError(ex, $"Error getting products in price range {min}-{max}");
                 return ErrorResponse<string>(ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Gets product sizes from appsettings (e.g. Small, Medium, Large, XLarge, XXLarge).
+        /// </summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult GetProductSize()
+        {
+            var sizes = _configuration.GetSection("ProductSize").Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
+            return SuccessResponse(sizes);
+        }
+
+        /// <summary>
+        /// Gets product colours from appsettings (e.g. Red, Blue, Green, etc.).
+        /// </summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult GetProductColour()
+        {
+            var colours = _configuration.GetSection("ProductColour").Get<Dictionary<string, string>>() ?? new Dictionary<string, string>();
+            return SuccessResponse(colours);
         }
 
         #endregion
