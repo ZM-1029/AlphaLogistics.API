@@ -75,7 +75,8 @@ namespace AlphaLogistics.API.Services
                 Role = user.RoleMaster?.Name ?? "User",
                 ProfileImage = user.ProfileImage,
                 IsActive = user.IsActive,
-                CreatedAt = user.CreatedAt
+                CreatedAt = user.CreatedAt,
+                Password = user.Password != null ? EncriptorUtility.Decrypt(user.Password, false) : null
             };
 
             return response;
@@ -482,7 +483,7 @@ namespace AlphaLogistics.API.Services
         {
             var user = await _context.UserMasters
                 .Include(u => u.RoleMaster)
-                .FirstOrDefaultAsync(u => u.Id == id && u.RoleId!=AppConstants.UserRole.Customer && u.RoleId != AppConstants.UserRole.Vendor);
+                .FirstOrDefaultAsync(u => u.Id == id && /*u.RoleId!=AppConstants.UserRole.Customer && */u.RoleId != AppConstants.UserRole.Vendor);
 
             if (user == null)
                 throw new Exception("User not found");
@@ -502,6 +503,9 @@ namespace AlphaLogistics.API.Services
 
             if (updateDto.IsActive.HasValue)
                 user.IsActive = updateDto.IsActive.Value;
+
+            if (!string.IsNullOrEmpty(updateDto.Password))
+                user.Password = EncriptorUtility.Encrypt(updateDto.Password, false);
 
             // Update profile image if provided
             if (updateDto.ProfileImage != null)

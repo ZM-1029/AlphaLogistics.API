@@ -8,5 +8,6 @@
         public string? Address { get; set; }
         public IFormFile? ProfileImage { get; set; }
         public bool? IsActive { get; set; }
+        public string? Password { get; set; }
     }
 }
