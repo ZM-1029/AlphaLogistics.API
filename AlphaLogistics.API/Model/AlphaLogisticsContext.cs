@@ -27,11 +27,7 @@ namespace AlphaLogistics.API.Model
          {
 
          }
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-        {
-            options.UseNpgsql(
-                "Host=zoumaapp.com;Port=5432;Database=AlphaLogisticsDb;Username=postgres;Password=zoumapg!@#admin;");
-        }
+    
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

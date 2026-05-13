@@ -1,25 +1,37 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="EPPlus" Version="7.2.2" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
-    <PackageReference Include="Serilog" Version="4.3.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="EPPlus" Version="7.2.2" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.1">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />
+		<PackageReference Include="Serilog" Version="4.3.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="8.1.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Repository\" />
-  </ItemGroup>
+	<ItemGroup>
+		<Folder Include="Repository\" />
+	</ItemGroup>
+
+	<!-- 🟢 NEW: Include upload folders in publish -->
+	<ItemGroup>
+		<Content Include="uploads\**">
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
+
+	<!-- 🟢 OPTIONAL: Create folders if they don't exist during build -->
+	<Target Name="CreateUploadFolders" BeforeTargets="BeforeBuild">
+		<MakeDir Directories="uploads/profiles;uploads/documents;uploads/products;uploads/payment" />
+	</Target>
 
 </Project>

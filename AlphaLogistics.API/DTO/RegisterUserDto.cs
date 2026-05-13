@@ -22,7 +22,8 @@ namespace AlphaLogistics.API.DTO
 
        // public string? Address { get; set; }
 
-        //[Required]
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "A valid RoleId is required")]
         public int RoleId { get; set; }  // User Role
 
         public IFormFile? ProfileImage { get; set; }
