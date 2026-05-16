@@ -16,171 +16,189 @@ namespace AlphaLogistics.API.Services
             _config = config;
         }
 
-        public async Task<object> GraphData(int vendorId)
+       public async Task<object> GraphData(int vendorId)
+{
+    try
+    {
+        var orderStatusSection = _config
+        .GetSection("OrderStatus")
+        .Get<Dictionary<string, string>>();
+
+        var orderStatusList = orderStatusSection?
+            .Select(x => new
+            {
+                Id = int.Parse(x.Value),
+                Name = x.Key,
+            })
+            .OrderBy(x => x.Id)
+            .ToList();
+
+        if (vendorId > 0)
         {
-            try
-            {
-                var orderStatusSection = _config
-                .GetSection("OrderStatus")
-                .Get<Dictionary<string, string>>();
+            var vendorProductIdsQuery = _context.ProductMasters
+                .Where(x => x.VendorId == vendorId)
+                .Select(x => x.Id);
 
-                var orderStatusList = orderStatusSection?
-                    .Select(x => new
-                    {
-                        Id = int.Parse(x.Value),
-                        Name = x.Key,
-                        // Label = FormatLabel(x.Key)
-                    })
-                    .OrderBy(x => x.Id)
-                    .ToList();
+            var orderItemsQuery = _context.OrderItems
+                .Where(x => vendorProductIdsQuery.Contains(x.ProductId));
 
-                if (vendorId > 0)
+            var orderIdsQuery = orderItemsQuery
+                .Select(x => x.OrderId)
+                .Distinct();
+
+            var validOrdersQuery = _context.OrderMasters
+                .Where(x => orderIdsQuery.Contains(x.Id) &&
+                            x.Status != AppConstants.OrderStatus.Cancelled &&
+                            x.Status != AppConstants.OrderStatus.Refunded);
+
+            var validOrderItemsQuery = orderItemsQuery
+                .Where(x => validOrdersQuery.Select(v => v.Id).Contains(x.OrderId));
+
+            var totalRevenue = await validOrderItemsQuery
+                .SumAsync(x => x.UnitPrice * x.Quantity);
+
+            var totalOrders = await orderIdsQuery.CountAsync();
+            var deliveredOrders = await validOrdersQuery.CountAsync();
+            var cancelOrRefundedOrders = totalOrders - deliveredOrders;
+
+            // Group by order to get one record per order with items list
+            var orderResponse = await (
+                from oi in _context.OrderItems
+                join p in _context.ProductMasters on oi.ProductId equals p.Id
+                join sc in _context.SubCategoryMasters on p.SubCategoryId equals sc.Id
+                join c in _context.CategoryMasters on sc.CategoryId equals c.Id
+                join om in _context.OrderMasters on oi.OrderId equals om.Id
+                join pi in _context.ProductImages on p.Id equals pi.ProductId into imageGroup
+                where p.VendorId == vendorId &&
+                      om.Status != AppConstants.OrderStatus.Cancelled &&
+                      om.Status != AppConstants.OrderStatus.Refunded
+                select new
                 {
-                    var vendorProductIdsQuery = _context.ProductMasters
-                        .Where(x => x.VendorId == vendorId)
-                        .Select(x => x.Id);
-
-                    var orderItemsQuery = _context.OrderItems
-                        .Where(x => vendorProductIdsQuery.Contains(x.ProductId));
-
-                    var orderIdsQuery = orderItemsQuery
-                        .Select(x => x.OrderId)
-                        .Distinct();
-
-                    var validOrdersQuery = _context.OrderMasters
-                        .Where(x => orderIdsQuery.Contains(x.Id) &&
-                                    x.Status != AppConstants.OrderStatus.Cancelled &&
-                                    x.Status != AppConstants.OrderStatus.Refunded);
-
-                    var validOrderItemsQuery = orderItemsQuery
-                        .Where(x => validOrdersQuery.Select(v => v.Id).Contains(x.OrderId));
-
-                    var totalRevenue = await validOrderItemsQuery
-                        .SumAsync(x => x.UnitPrice * x.Quantity);
-
-                    var totalOrders = await orderIdsQuery.CountAsync();
-                    var deliveredOrders = await validOrdersQuery.CountAsync();
-                    var cancelOrRefundedOrders = totalOrders - deliveredOrders;
-
-                    var orderResponse = await (
-                        from oi in _context.OrderItems
-                        join p in _context.ProductMasters on oi.ProductId equals p.Id
-                        join sc in _context.SubCategoryMasters on p.SubCategoryId equals sc.Id
-                        join c in _context.CategoryMasters on sc.CategoryId equals c.Id
-                        join om in _context.OrderMasters on oi.OrderId equals om.Id
-                        join pi in _context.ProductImages on p.Id equals pi.ProductId into imageGroup
-                        where p.VendorId == vendorId &&
-                              om.Status != AppConstants.OrderStatus.Cancelled &&
-                              om.Status != AppConstants.OrderStatus.Refunded
-
-                             // let status= (orderStatusList != null && orderStatusList.FirstOrDefault(x => x.Id == om.Status) != null) ? orderStatusList.FirstOrDefault(x => x.Id == om.Status).Name : "N/A"
-                        select new
-                        {
-                            om.Id,
-                            om.OrderNumber,
-                            om.TotalAmount,
-                            om.Status,
-                            om.OrderDate,
-                            ProductName = p.ProductName,
-                            Category = c.Name,
-                            ProductImages = imageGroup.Select(img => img.ImageUrl).ToList()
-                        }
-                    )
-                    .OrderBy(x => x.OrderDate)
-                    .ToListAsync();
-
-                    var Response = orderResponse.Select(x => new
-                    {
-                        x.Id,
-                        x.OrderNumber,
-                        x.TotalAmount,
-                        Status = orderStatusList?.FirstOrDefault(s => s.Id == x.Id)?.Name ?? "N/A",
-                        x.OrderDate,
-                        x.ProductName,
-                        x.Category,
-                        x.ProductImages
-                    }).ToList();
-
-                    return new
-                    {
-                       /* TotalRevenue = totalRevenue,
-                        TotalOrders = totalOrders,
-                        DeliveredOrders = deliveredOrders,
-                        CancelOrRefundedOrders = cancelOrRefundedOrders,
-                        VendorCount = 1,*/
-                        OrderList = Response
-                    };
+                    om.Id,
+                    om.OrderNumber,
+                    om.TotalAmount,
+                    om.Status,
+                    om.OrderDate,
+                    ProductName = p.ProductName,
+                    Category = c.Name,
+                    UnitPrice = oi.UnitPrice,
+                    Quantity = oi.Quantity,
+                    ProductImages = imageGroup.Select(img => img.ImageUrl).ToList()
                 }
-                else
+            )
+            .OrderBy(x => x.OrderDate)
+            .ToListAsync();
+
+            // Group by order and create items list
+            var Response = orderResponse
+                .GroupBy(x => new { x.Id, x.OrderNumber, x.TotalAmount, x.Status, x.OrderDate })
+                .Select(g => new
                 {
-                    var validOrdersQuery = _context.OrderMasters
-                        .Where(x => x.Status != AppConstants.OrderStatus.Cancelled &&
-                                    x.Status != AppConstants.OrderStatus.Refunded);
-
-                    // ✅ Run sequentially instead of parallel
-                    var totalRevenue = await validOrdersQuery.SumAsync(x => x.TotalAmount);
-                    var deliveredOrders = await validOrdersQuery.CountAsync();
-                    var totalOrders = await _context.OrderMasters.CountAsync();
-                    var vendorCount = await _context.VendorMasters.CountAsync();
-                    var cancelOrRefundedOrders = totalOrders - deliveredOrders;
-
-                    var orderResponse = await (
-                        from o in _context.OrderMasters
-                        where o.Status != AppConstants.OrderStatus.Cancelled &&
-                              o.Status != AppConstants.OrderStatus.Refunded
-                        join oi in _context.OrderItems on o.Id equals oi.OrderId
-                        join p in _context.ProductMasters on oi.ProductId equals p.Id
-                        join sc in _context.SubCategoryMasters on p.SubCategoryId equals sc.Id
-                        join c in _context.CategoryMasters on sc.CategoryId equals c.Id
-                        join pi in _context.ProductImages on p.Id equals pi.ProductId into imageGroup
-                       // let status = (orderStatusList != null && orderStatusList.FirstOrDefault(x => x.Id == o.Status) != null) ? orderStatusList.FirstOrDefault(x => x.Id == o.Status).Name : "N/A"
-
-                        select new
-                        {
-                            o.Id,
-                            o.OrderNumber,
-                            o.TotalAmount,
-                           // Status = status,
-                            o.OrderDate,
-                            ProductName = p.ProductName,
-                            Category = c.Name,
-                            ProductImages = imageGroup.Select(img => img.ImageUrl).ToList()
-                        }
-                    )
-                    .OrderBy(x => x.OrderDate)
-                    .ToListAsync();
-
-                    var Response = orderResponse.Select(x => new
+                    g.Key.Id,
+                    g.Key.OrderNumber,
+                    g.Key.TotalAmount,
+                    Status = orderStatusList?.FirstOrDefault(s => s.Id == g.Key.Status)?.Name ?? "N/A",
+                    g.Key.OrderDate,
+                    Items = g.Select(item => new
                     {
-                        x.Id,
-                        x.OrderNumber,
-                        x.TotalAmount,
-                        Status = orderStatusList?.FirstOrDefault(s => s.Id == x.Id)?.Name ?? "N/A",
-                        x.OrderDate,
-                        x.ProductName,
-                        x.Category,
-                        x.ProductImages
-                    }).ToList();
+                        item.ProductName,
+                        item.Category,
+                        item.UnitPrice,
+                        item.Quantity,
+                        SubTotal = item.UnitPrice * item.Quantity,
+                        item.ProductImages
+                    }).ToList()
+                })
+                .ToList();
 
-
-                    return new
-                    {
-                        /*TotalRevenue = totalRevenue,
-                        TotalOrders = totalOrders,
-                        DeliveredOrders = deliveredOrders,
-                        CancelOrRefundedOrders = cancelOrRefundedOrders,
-                        VendorCount = vendorCount,*/
-                        OrderList = Response
-                    };
-                }
-            }
-            catch (Exception ex)
-            
+            return new
             {
-                Log.Error($"DashBoardService/GraphData :{ex.Message}");
-                return null;
-            }
+                TotalRevenue = totalRevenue,
+                TotalOrders = totalOrders,
+                DeliveredOrders = deliveredOrders,
+                CancelOrRefundedOrders = cancelOrRefundedOrders,
+                VendorCount = 1,
+                OrderList = Response
+            };
         }
+        else
+        {
+            var validOrdersQuery = _context.OrderMasters
+                .Where(x => x.Status != AppConstants.OrderStatus.Cancelled &&
+                            x.Status != AppConstants.OrderStatus.Refunded);
+
+            var totalRevenue = await validOrdersQuery.SumAsync(x => x.TotalAmount);
+            var deliveredOrders = await validOrdersQuery.CountAsync();
+            var totalOrders = await _context.OrderMasters.CountAsync();
+            var vendorCount = await _context.VendorMasters.CountAsync();
+            var cancelOrRefundedOrders = totalOrders - deliveredOrders;
+
+            // Group by order to get one record per order with items list
+            var orderResponse = await (
+                from o in _context.OrderMasters
+                where o.Status != AppConstants.OrderStatus.Cancelled &&
+                      o.Status != AppConstants.OrderStatus.Refunded
+                join oi in _context.OrderItems on o.Id equals oi.OrderId
+                join p in _context.ProductMasters on oi.ProductId equals p.Id
+                join sc in _context.SubCategoryMasters on p.SubCategoryId equals sc.Id
+                join c in _context.CategoryMasters on sc.CategoryId equals c.Id
+                join pi in _context.ProductImages on p.Id equals pi.ProductId into imageGroup
+                select new
+                {
+                    o.Id,
+                    o.OrderNumber,
+                    o.TotalAmount,
+                    o.Status,
+                    o.OrderDate,
+                    ProductName = p.ProductName,
+                    Category = c.Name,
+                    UnitPrice = oi.UnitPrice,
+                    Quantity = oi.Quantity,
+                    ProductImages = imageGroup.Select(img => img.ImageUrl).ToList()
+                }
+            )
+            .OrderBy(x => x.OrderDate)
+            .ToListAsync();
+
+            // Group by order and create items list
+            var Response = orderResponse
+                .GroupBy(x => new { x.Id, x.OrderNumber, x.TotalAmount, x.Status, x.OrderDate })
+                .Select(g => new
+                {
+                    g.Key.Id,
+                    g.Key.OrderNumber,
+                    g.Key.TotalAmount,
+                    Status = orderStatusList?.FirstOrDefault(s => s.Id == g.Key.Status)?.Name ?? "N/A",
+                    g.Key.OrderDate,
+                    Items = g.Select(item => new
+                    {
+                        item.ProductName,
+                        item.Category,
+                        item.UnitPrice,
+                        item.Quantity,
+                        SubTotal = item.UnitPrice * item.Quantity,
+                        item.ProductImages
+                    }).ToList()
+                })
+                .ToList();
+
+            return new
+            {
+                TotalRevenue = totalRevenue,
+                TotalOrders = totalOrders,
+                DeliveredOrders = deliveredOrders,
+                CancelOrRefundedOrders = cancelOrRefundedOrders,
+                VendorCount = vendorCount,
+                OrderList = Response
+            };
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error($"DashBoardService/GraphData :{ex.Message}");
+        return null;
+    }
+}
         public async Task<object> GetMonthlySalesReport(int vendorId)
         {
             try

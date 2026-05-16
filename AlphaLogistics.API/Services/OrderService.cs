@@ -152,12 +152,13 @@ namespace AlphaLogistics.API.Services
                              .ThenInclude(oi => oi.ProductMaster)
                          .AsQueryable();
 
-                                    if (data.VendorId.HasValue && data.VendorId > 0)
-                                    {
-                                        query = query.Where(o => o.OrderItems!
-                                            .Any(oi => oi.ProductMaster != null
-                                                    && oi.ProductMaster.VendorId == data.VendorId.Value));
-                                    }
+                var products= await _context.ProductMasters.Where(x=>x.VendorId==14).ToListAsync();
+                if (data.VendorId.HasValue && data.VendorId > 0)
+                {
+                    query = query.Where(o => o.OrderItems!
+                        .Any(oi => oi.ProductMaster != null
+                                && oi.ProductMaster.VendorId == data.VendorId.Value));
+                }
 
                 var orders = await query.ToListAsync();
 

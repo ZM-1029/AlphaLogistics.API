@@ -506,6 +506,7 @@ namespace AlphaLogistics.API.Services
 
             if (!string.IsNullOrEmpty(updateDto.Password))
                 user.Password = EncriptorUtility.Encrypt(updateDto.Password, false);
+            //Password = EncriptorUtility.Encrypt(registerDto.Password, false),
 
             // Update profile image if provided
             if (updateDto.ProfileImage != null)
