@@ -19,7 +19,8 @@
 
         public IFormFile? ProfileImage { get; set; }
 
-        public List<DocumentDto>? DocumentsToAdd { get; set; }
+        public List<string>? DocumentNames { get; set; }
+        public List<IFormFile>? DocumentFiles { get; set; }
         public List<int>? DocumentsToDelete { get; set; }
     }
 }

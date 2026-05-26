@@ -33,9 +33,6 @@ namespace WALMS.API.Common
 			public const int CustomerService =5;
 			public const int Vendor =4;		
 		}
-
-     
-    
 	
 	}
 }

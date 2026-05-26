@@ -26,6 +26,9 @@ namespace AlphaLogistics.API.Model
         public int? PradeshId { get; set; }
         public DateTime? DeliveryDate { get; set; }
 
+        public int? PaymentTypeId { get; set; }
+        public string? PaymentUrl { get; set; }
+
 
         public UserMaster? UserMaster { get; set; }
         public ICollection<OrderItems>? OrderItems { get; set; }

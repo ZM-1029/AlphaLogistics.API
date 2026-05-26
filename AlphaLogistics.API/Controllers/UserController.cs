@@ -35,8 +35,8 @@ namespace AlphaLogistics.API.Controllers
         {
             try
             {
-                var result = await _userService.RegisterCustomerAsync(registerDto);
-                return SuccessResponse(result, "customer registered successfully");
+                var userId = await _userService.RegisterCustomerAsync(registerDto);
+                return SuccessResponse(new { UserId = userId }, "customer registered successfully");
             }
             catch (Exception ex)
             {

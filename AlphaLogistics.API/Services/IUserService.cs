@@ -13,7 +13,7 @@ namespace AlphaLogistics.API.Services
         public  Task<dynamic> GetCustomerByIdAsync(int customerId);
         public  Task<List<dynamic>> GetAllCustomerAsync();
         public  Task<bool> UpdateCustomerAsync(CustomerCreateDTO registerDto);
-        public  Task<bool> RegisterCustomerAsync(CustomerCreateDTO registerDto);
+        public  Task<int> RegisterCustomerAsync(CustomerCreateDTO registerDto);
         public List<PradeshMaster> GetActivePradeshList();
         Task<UserResponseDto> RegisterUserAsync(RegisterUserDto registerDto);
         Task<UserResponseDto> GetUserByIdAsync(int id);

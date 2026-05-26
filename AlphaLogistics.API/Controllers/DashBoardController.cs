@@ -29,5 +29,24 @@ namespace AlphaLogistics.API.Controllers
             var result = await _dashBoardService.GraphData(vendorId);
             return SuccessResponse(result, "Data retrieved successfully");
         }
+
+        [HttpGet]
+        public async Task<IActionResult> VendorDashboard(int vendorId)
+        {
+            var graphData    = await _dashBoardService.GraphData(vendorId);
+            var monthlySales = await _dashBoardService.GetMonthlySalesReport(vendorId);
+
+            // Strip summary from monthlySales — totals already exist in graphData
+            dynamic? sales = monthlySales;
+            return SuccessResponse(new
+            {
+                GraphData    = graphData,
+                MonthlySales = new
+                {
+                    Year        = (object?)sales?.Year,
+                    MonthlyData = (object?)sales?.MonthlyData
+                }
+            }, "Data retrieved successfully");
+        }
     }
 }

@@ -8,6 +8,7 @@ namespace AlphaLogistics.API.DTO
     {
        // public int Id { get; set; }
         public bool IsPlacedByAdmin { get; set; }=false;
+        public int? UserId { get; set; }
         public int PradeshId { get; set; }
         public string? OrderNumber { get; set; }
         public decimal? DeliveryCharge { get; set; }
@@ -18,6 +19,8 @@ namespace AlphaLogistics.API.DTO
         public string? DeliveryInstuctions { get; set; }
         public string? Remark { get; set; }
         public decimal? TotalAmount { get; set; }
+        public int? PaymentTypeId { get; set; }
+        public string? PaymentUrl { get; set; }
         public List<OrderItemDTO> OrderItems { get; set; }
     }
 

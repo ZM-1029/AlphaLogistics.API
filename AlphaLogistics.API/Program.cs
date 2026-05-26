@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Database
@@ -15,8 +14,13 @@ builder.Services.AddDbContext<AlphaLogisticsContext>(options =>
 
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("SmtpOptions"));
 builder.Services.AddScoped<IDashBoardService, DashBoardService>();
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.WriteIndented = true;
+    }); builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, UserContext>();
 
@@ -34,6 +38,10 @@ builder.Services.AddSwaggerGen(c =>
             Email = "support@alphalogistics.com"
         }
     });
+    // ✅ Add these to fix schema errors
+    c.UseInlineDefinitionsForEnums();
+    c.UseAllOfToExtendReferenceSchemas();
+    c.CustomSchemaIds(type => type.FullName);
 });
 
 // Cookie Authentication

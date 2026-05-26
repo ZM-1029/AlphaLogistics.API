@@ -387,6 +387,7 @@ namespace AlphaLogistics.API.Services
                 .Include(p => p.VendorMaster)
                 .Include(p => p.SubCategoryMaster)
                     .ThenInclude(sc => sc.CategoryMaster)
+                .Include(p => p.ProductImages)
                 .Where(p => p.VendorId == vendorId)
                 .AsQueryable();
 

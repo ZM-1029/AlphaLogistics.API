@@ -64,11 +64,24 @@ namespace AlphaLogistics.API.Controllers
         [HttpPost]
         public async Task<IActionResult> PlaceOrder(OrderDTO order)
         {
-            var orderId = await _orderService.PlaceOrder(order);
+            var (orderId, orderNumber) = await _orderService.PlaceOrder(order);
 
-            if (orderId > 0) { return SuccessResponse(orderId, "Order placed successfully"); }
+            if (orderId > 0)
+                return SuccessResponse(new { OrderId = orderId, OrderNumber = orderNumber }, "Order placed successfully");
 
-            else return ErrorResponse<string>("Error while placing order");
+            return ErrorResponse<string>("Error while placing order");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UploadPaymentProof(int orderId, IFormFile file)
+        {
+            if (orderId <= 0) return ErrorResponse<string>("Invalid order Id");
+            if (file == null || file.Length == 0) return ErrorResponse<string>("File is required");
+
+            var result = await _orderService.UploadPaymentProof(orderId, file);
+            if (result) return SuccessResponse(result, "Payment proof uploaded successfully");
+
+            return ErrorResponse<string>("Order not found or upload failed");
         }
 
         [HttpPatch]
@@ -102,7 +115,9 @@ namespace AlphaLogistics.API.Controllers
                 return SuccessResponse(response, "Data retrieved successfully");
             }
             else
-                return ErrorResponse<string>("No orders found");
+                return SuccessResponse<string>(null,"No orders found");
+
+            //return ErrorResponse<string>("No orders found");
         }
 
         [HttpGet]
@@ -170,7 +185,8 @@ namespace AlphaLogistics.API.Controllers
 
         private static string BuildDeliveryLabelHtml(DeliveryLabelDto dto)
         {
-            string Esc(string? s) => string.IsNullOrEmpty(s) ? "—" : System.Net.WebUtility.HtmlEncode(s);
+            string Esc(string? s) => string.IsNullOrEmpty(s) ? "" : System.Net.WebUtility.HtmlEncode(s);
+            string date = DateTime.Now.ToString("dd MMM yyyy");
             return $@"<!DOCTYPE html>
 <html lang=""en"">
 <head>
@@ -179,54 +195,209 @@ namespace AlphaLogistics.API.Controllers
   <title>Delivery Label - {Esc(dto.OrderNumber)}</title>
   <style>
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 16px; background: #f5f5f5; }}
-    @media print {{ body {{ background: #fff; padding: 0; }} .no-print {{ display: none; }} }}
-    .label {{ max-width: 420px; margin: 0 auto; background: #fff; border: 2px solid #1a1a1a; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
-    .label-header {{ background: #1a1a1a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; }} 
-    .label-body {{ padding: 20px 16px; }}
-    .label-row {{ margin-bottom: 14px; }}
-    .label-row:last-child {{ margin-bottom: 0; }}
-    .label-key {{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #666; margin-bottom: 2px; }}
-    .label-val {{ font-size: 15px; font-weight: 500; color: #111; word-break: break-word; }}
-    .instruction {{ border-top: 1px dashed #ccc; padding-top: 14px; margin-top: 14px; }}
-    .print-btn {{ display: block; max-width: 420px; margin: 16px auto 0; padding: 10px 20px; background: #1a1a1a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }}
+    body {{
+      font-family: Arial, Helvetica, sans-serif;
+      background: #e8e8e8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 16px;
+      min-height: 100vh;
+    }}
+
+    /* ── Label wrapper: 4×6 inch at 96 dpi = 384×576px ── */
+    .label {{
+      width: 384px;
+      background: #fff;
+      border: 2px solid #000;
+      font-size: 12px;
+      color: #000;
+    }}
+
+    /* ── Top bar ── */
+    .top-bar {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111;
+      color: #fff;
+      padding: 8px 12px;
+    }}
+    .top-bar .company {{ font-size: 15px; font-weight: 700; letter-spacing: 1px; }}
+    .top-bar .label-type {{ font-size: 10px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.75; }}
+
+    /* ── Order number band ── */
+    .order-band {{
+      background: #f0f0f0;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+    .order-band .order-label {{ font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #555; }}
+    .order-band .order-number {{ font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }}
+    .order-band .order-date {{ font-size: 10px; color: #444; text-align: right; }}
+
+    /* ── Section dividers ── */
+    .section {{
+      padding: 10px 12px;
+      border-bottom: 1px solid #ddd;
+    }}
+    .section:last-child {{ border-bottom: none; }}
+    .section-title {{
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #777;
+      margin-bottom: 5px;
+      font-weight: 700;
+    }}
+
+    /* ── Ship-to block ── */
+    .ship-to-name {{
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }}
+    .ship-to-phone {{
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+    }}
+    .ship-to-address {{
+      font-size: 12px;
+      line-height: 1.5;
+      color: #222;
+    }}
+
+    /* ── Instructions ── */
+    .instructions {{
+      font-size: 11px;
+      line-height: 1.5;
+      color: #333;
+      font-style: italic;
+    }}
+    .no-instruction {{ color: #aaa; font-style: italic; font-size: 10px; }}
+
+    /* ── Barcode-style stripe ── */
+    .barcode-stripe {{
+      display: flex;
+      height: 36px;
+      gap: 2px;
+      padding: 4px 12px;
+      align-items: flex-end;
+      background: #fff;
+      border-bottom: 1px solid #ddd;
+      overflow: hidden;
+    }}
+    .barcode-stripe span {{
+      display: inline-block;
+      background: #000;
+      width: 2px;
+      border-radius: 1px;
+    }}
+
+    /* ── Footer ── */
+    .footer {{
+      background: #111;
+      color: #aaa;
+      font-size: 8px;
+      text-align: center;
+      padding: 5px 12px;
+      letter-spacing: 0.5px;
+    }}
+
+    /* ── Print button (hidden on print) ── */
+    .print-btn {{
+      margin-top: 20px;
+      padding: 10px 32px;
+      background: #111;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+    }}
     .print-btn:hover {{ background: #333; }}
+
+    @media print {{
+      body {{ background: #fff; padding: 0; }}
+      .label {{ border: 1.5px solid #000; box-shadow: none; }}
+      .print-btn {{ display: none; }}
+    }}
   </style>
 </head>
 <body>
   <div class=""label"">
-    <div class=""label-header"">DELIVERY LABEL</div>
-    <div class=""label-body"">
-      <div class=""label-row"">
-        <div class=""label-key"">Order Number</div>
-        <div class=""label-val"">{Esc(dto.OrderNumber)}</div>
+
+    <!-- Header -->
+    <div class=""top-bar"">
+      <span class=""company"">&#9650; AlphaLogistics</span>
+      <span class=""label-type"">Delivery Label</span>
+    </div>
+
+    <!-- Order number -->
+    <div class=""order-band"">
+      <div>
+        <div class=""order-label"">Order No.</div>
+        <div class=""order-number"">{Esc(dto.OrderNumber)}</div>
       </div>
-      <div class=""label-row"">
-        <div class=""label-key"">Name</div>
-        <div class=""label-val"">{Esc(dto.CustomerName)}</div>
-      </div>
-      <div class=""label-row"">
-        <div class=""label-key"">Phone</div>
-        <div class=""label-val"">{Esc(dto.Phone)}</div>
-      </div>
-      <div class=""label-row"">
-        <div class=""label-key"">Address</div>
-        <div class=""label-val"">{Esc(dto.Address)}</div>
-      </div>
-      <div class=""label-row"">
-        <div class=""label-key"">Pradesh</div>
-        <div class=""label-val"">{Esc(dto.Pradesh)}</div>
-      </div>
-      <div class=""label-row instruction"">
-        <div class=""label-key"">Delivery Instruction</div>
-        <div class=""label-val"">{Esc(dto.DeliveryInstruction)}</div>
+      <div class=""order-date"">
+        <div class=""order-label"">Date</div>
+        <div>{date}</div>
       </div>
     </div>
+
+    <!-- Barcode-style decoration -->
+    <div class=""barcode-stripe"">
+      {GenerateBarcodeStripes(dto.OrderNumber)}
+    </div>
+
+    <!-- Ship To -->
+    <div class=""section"">
+      <div class=""section-title"">&#9654; Ship To</div>
+      <div class=""ship-to-name"">{Esc(dto.CustomerName)}</div>
+      <div class=""ship-to-phone"">&#128222; {Esc(dto.Phone)}</div>
+      <div class=""ship-to-address"">
+        {Esc(dto.Address)}{(string.IsNullOrWhiteSpace(dto.Pradesh) ? "" : $", {Esc(dto.Pradesh)}")}
+      </div>
+    </div>
+
+    <!-- Delivery Instructions -->
+    <div class=""section"">
+      <div class=""section-title"">&#9993; Delivery Instructions</div>
+      {(string.IsNullOrWhiteSpace(dto.DeliveryInstruction)
+          ? @"<div class=""no-instruction"">No special instructions</div>"
+          : $@"<div class=""instructions"">{Esc(dto.DeliveryInstruction)}</div>")}
+    </div>
+
+    <!-- Footer -->
+    <div class=""footer"">AlphaLogistics &mdash; Handle with care &mdash; {date}</div>
   </div>
-  <button type=""button"" class=""print-btn no-print"" onclick=""window.print()"">Print Label</button>
-  <script>window.onload = function() {{ /* optional: auto-print prompt */ }};</script>
+
+  <button type=""button"" class=""print-btn"" onclick=""window.print()"">&#128438; Print Label</button>
 </body>
 </html>";
+        }
+
+        private static string GenerateBarcodeStripes(string? input)
+        {
+            var rng = new Random(string.IsNullOrEmpty(input) ? 42 : input.GetHashCode());
+            var sb = new System.Text.StringBuilder();
+            int totalWidth = 0;
+            while (totalWidth < 340)
+            {
+                int w = rng.Next(1, 5);
+                int h = rng.Next(16, 32);
+                sb.Append($"<span style=\"width:{w}px;height:{h}px\"></span>");
+                totalWidth += w + 2;
+            }
+            return sb.ToString();
         }
 
         [HttpGet]
@@ -260,21 +431,18 @@ namespace AlphaLogistics.API.Controllers
                     Branch = _configuration["BankTransfer:Branch"],
                 };
 
-                return Ok(new
-                {
-                    bankInstructions = BankDetails,
-                    message = "Please transfer the amount and send payment confirmation"
-                });
+                return SuccessResponse(BankDetails,"Please transfer the amount and send payment confirmation");
 
             }
             else
             {
+
                 // QR transfer insruction
-                return Ok(new
+                return SuccessResponse(new
                 {
-                    QRCodeUrl = "/uploads/payment/0efb7098-1072-496a-8048-615471dbb0ee_Jack",
-                    message = "Please scan the QR and send payment confirmation"
-                });
+                    QRCodeUrl = "/uploads/payment/0efb7098-1072-496a-8048-615471dbb0ee_Jack"
+                    
+                },"Please scan the QR and send payment confirmation");
 
             }
         }

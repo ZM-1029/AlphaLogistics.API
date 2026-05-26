@@ -122,26 +122,32 @@ namespace AlphaLogistics.API.Services
 
         public async Task<int> OrderCount(OrderListDTO data)
         {
-            var orders = await _context.OrderMasters.ToListAsync();
+            var query = _context.OrderMasters.AsQueryable();
 
-            if (data.userId != null && data.userId>0)
+            if (data.VendorId.HasValue && data.VendorId > 0)
             {
-                orders = orders.Where(x => x.UserId == data.userId).ToList();
+                var vendorProductIds = _context.ProductMasters
+                    .Where(p => p.VendorId == data.VendorId.Value)
+                    .Select(p => p.Id);
+
+                query = query.Where(o => o.OrderItems!
+                    .Any(oi => vendorProductIds.Contains(oi.ProductId)));
             }
 
-            if (!orders.Any()) return 0;
+            if (data.userId != null && data.userId > 0)
+                query = query.Where(x => x.UserId == data.userId);
 
             if (data.from.HasValue && data.to.HasValue)
             {
-                orders = orders.Where(x => x.OrderDate.Date >= data.from.Value.Date && x.OrderDate.Date <= data.to.Value.Date).ToList();
+                var fromUtc = DateTime.SpecifyKind(data.from.Value.Date, DateTimeKind.Utc);
+                var toUtc   = DateTime.SpecifyKind(data.to.Value.Date,   DateTimeKind.Utc);
+                query = query.Where(x => x.OrderDate >= fromUtc && x.OrderDate < toUtc.AddDays(1));
             }
 
-            if (data.statusId.HasValue && data.statusId>0)
-            {
-                orders = orders.Where(x => x.Status == data.statusId).ToList();
-            }
+            if (data.statusId.HasValue && data.statusId > 0)
+                query = query.Where(x => x.Status == data.statusId);
 
-           return orders.Count;          
+            return await query.CountAsync();
         }
         public async Task<List<dynamic>?> GetOrderList(OrderListDTO data)
         {
@@ -208,7 +214,7 @@ namespace AlphaLogistics.API.Services
                 x.CourierPartner,
                 x.Remark,
                 x.DeliveryDate
-                }).OrderBy(x=>x.OrderDate).ToList();
+                }).OrderByDescending(x=>x.OrderDate).ToList();
 
                 response = response
                             .Skip((data.page - 1) * data.pageSize)
@@ -233,18 +239,18 @@ namespace AlphaLogistics.API.Services
             await _context.SaveChangesAsync();
             return true;
         }
-        public async Task<int> PlaceOrder(OrderDTO order)
+        public async Task<(int OrderId, string OrderNumber)> PlaceOrder(OrderDTO order)
         {
             try
             {
                 var orderNumber = $"AL-{DateTime.Now.Ticks}";
                 var orderTotal = order.OrderItems.Sum(item => (item.UnitPrice ?? 0) * item.Quantity);
-                var userId = _userContext.UserId;
+                var userId = _userContext.UserId > 0 ? _userContext.UserId : (order.UserId ?? 0);
 
                 if (userId <= 0)
                 {
                     Log.Error("Order Service/PlaceOrder: UserId is zero");
-                    return 0;
+                    return (0, string.Empty);
                 }
 
                 var orderData = new OrderMaster
@@ -262,8 +268,9 @@ namespace AlphaLogistics.API.Services
                     DeliveryType = order.DeliveryType,
                     DeliveryInstuctions = order.DeliveryInstuctions,
                     Remark = order.Remark,
-                    PradeshId = order.PradeshId,  
-                    
+                    PradeshId = order.PradeshId,
+                    PaymentTypeId = order.PaymentTypeId,
+                    PaymentUrl = order.PaymentUrl,
                 };
 
                 using (var transaction = await _context.Database.BeginTransactionAsync())
@@ -289,13 +296,13 @@ namespace AlphaLogistics.API.Services
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    return orderData.Id;
+                    return (orderData.Id, orderData.OrderNumber);
                 }
             }
             catch (Exception ex)
             {
                 Log.Error($"Order Service/PlaceOrder: {ex.Message}");
-                return 0;
+                return (0, string.Empty);
             }
         }
         public async Task<bool> UpdateOrder(int orderId, OrderDTO order)
@@ -446,8 +453,9 @@ namespace AlphaLogistics.API.Services
 
                 if (from.HasValue && to.HasValue)
                 {
-                    query = query.Where(x => x.OrderDate.Date >= from.Value.Date &&
-                                            x.OrderDate.Date <= to.Value.Date);
+                    var fromUtc = DateTime.SpecifyKind(from.Value.Date, DateTimeKind.Utc);
+                    var toUtc   = DateTime.SpecifyKind(to.Value.Date,   DateTimeKind.Utc);
+                    query = query.Where(x => x.OrderDate >= fromUtc && x.OrderDate < toUtc.AddDays(1));
                 }
 
                 if (statusId.HasValue)
@@ -648,6 +656,45 @@ namespace AlphaLogistics.API.Services
                 Pradesh = pradeshName,
                 DeliveryInstruction = order.DeliveryInstuctions ?? ""
             };
+        }
+
+        public async Task<bool> UploadPaymentProof(int orderId, IFormFile file)
+        {
+            try
+            {
+                var order = await _context.OrderMasters.FirstOrDefaultAsync(x => x.Id == orderId);
+                if (order == null) return false;
+
+                var currDirectory = Directory.GetCurrentDirectory();
+                var uploadsFolder = Path.Combine(currDirectory, "uploads", "payments");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await file.CopyToAsync(fileStream);
+                }
+
+                // Delete old file if exists
+                if (!string.IsNullOrEmpty(order.PaymentUrl))
+                {
+                    var oldPath = Path.Combine(currDirectory, order.PaymentUrl.TrimStart('/'));
+                    if (File.Exists(oldPath))
+                        File.Delete(oldPath);
+                }
+
+                order.PaymentUrl = $"/uploads/payments/{uniqueFileName}";
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"OrderService/UploadPaymentProof: {ex.Message}");
+                return false;
+            }
         }
     }
 }

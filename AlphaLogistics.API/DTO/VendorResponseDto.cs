@@ -48,7 +48,7 @@ namespace AlphaLogistics.API.DTO
     {
         public int DocumentId { get; set; }
         public string DocumentName { get; set; }
-        public string DocumentUrl { get; set; }
+        public string? DocumentUrl { get; set; }
         public DateTime UploadedAt { get; set; }
     }
 

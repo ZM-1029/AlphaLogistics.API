@@ -54,7 +54,8 @@ namespace AlphaLogistics.API.DTO
 
         public IFormFile? ProfileImage { get; set; }
 
-        public List<DocumentDto>? Documents { get; set; }
+        public List<string>? DocumentNames { get; set; }
+        public List<IFormFile>? DocumentFiles { get; set; }
 
         [Required]
         [Range(typeof(bool), "true", "true", ErrorMessage = "You must accept terms and conditions")]

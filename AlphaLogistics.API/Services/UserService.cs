@@ -113,38 +113,77 @@ namespace AlphaLogistics.API.Services
 
             return ConvertToUserResponseDto(user);
         }
-        public async Task<bool> RegisterCustomerAsync(CustomerCreateDTO registerDto)
+        public async Task<int> RegisterCustomerAsync(CustomerCreateDTO registerDto)
         {
-
             if (await _context.UserMasters.AnyAsync(u => u.Phone == registerDto.Phone))
                 throw new Exception("Phone already exists");
 
-          /*  string? profileImageUrl = null;
-            if (registerDto.ProfileImage != null)
+            if (!string.IsNullOrEmpty(registerDto.Email) &&
+                await _context.UserMasters.AnyAsync(u => u.Email == registerDto.Email))
+                throw new Exception("Email already exists");
+
+            // Generate password if not provided
+            string plainPassword;
+            bool passwordGenerated = false;
+            if (string.IsNullOrWhiteSpace(registerDto.Password))
             {
-                profileImageUrl = await UploadProfileImage(registerDto.ProfileImage);
-            }*/
+                plainPassword = new GenerateRandomPassword().GetRandomAlphanumericString(10);
+                passwordGenerated = true;
+            }
+            else
+            {
+                plainPassword = registerDto.Password;
+            }
 
             var user = new UserMaster
             {
                 UserName = registerDto.Name,
                 Email = registerDto.Email,
-                Password = EncriptorUtility.Encrypt(registerDto.Password, false),
+                Password = EncriptorUtility.Encrypt(plainPassword, false),
                 Phone = registerDto.Phone,
-                PradeshId=registerDto.PradeshId,
-                Address=registerDto.Address,
-                //Address = registerDto.Address,
+                PradeshId = registerDto.PradeshId,
+                Address = registerDto.Address,
                 RoleId = AppConstants.UserRole.Customer,
-                //ProfileImage = profileImageUrl,
                 CreatedAt = DateTime.UtcNow,
                 IsActive = true,
-                //RoleMaster = role
             };
 
             _context.UserMasters.Add(user);
             await _context.SaveChangesAsync();
 
-            return false;
+            // Send generated password via email — failure must not break registration
+            if (passwordGenerated && !string.IsNullOrEmpty(registerDto.Email))
+            {
+                try
+                {
+                    string subject = "Your Account Has Been Created";
+                    string body = $@"
+                    <html>
+                    <body style='font-family: Arial, sans-serif; line-height: 1.6;'>
+                        <h2 style='color: #1565C0;'>Welcome to AlphaLogistics!</h2>
+                        <p>Dear {registerDto.Name},</p>
+                        <p>Your customer account has been created successfully. Below are your login credentials:</p>
+                        <div style='background-color: #E3F2FD; padding: 15px; border-left: 4px solid #1565C0; margin: 20px 0;'>
+                            <p><strong>Phone:</strong> {registerDto.Phone}</p>
+                            <p><strong>Password:</strong> {plainPassword}</p>
+                        </div>
+                        <p>Please log in and change your password at your earliest convenience.</p>
+                        <p><strong>The AlphaLogistics Team</strong></p>
+                        <hr style='margin: 20px 0; border: none; border-top: 1px solid #ddd;'>
+                        <p style='font-size: 12px; color: #666;'>This is an automated message. Please do not reply to this email.</p>
+                    </body>
+                    </html>";
+
+                    await EmailService.SendEmailAsync(registerDto.Email, subject, body);
+                }
+                catch (Exception emailEx)
+                {
+                    // Log warning but do not fail registration if email delivery fails
+                    Console.Error.WriteLine($"RegisterCustomer: email send failed for {registerDto.Email} — {emailEx.Message}");
+                }
+            }
+
+            return user.Id;
         }
         public async Task<bool> UpdateCustomerAsync(CustomerCreateDTO registerDto)
         {
@@ -290,16 +329,13 @@ namespace AlphaLogistics.API.Services
             }
 
             var documents = new List<DocumentMaster>();
-            if (registerDto.Documents != null && registerDto.Documents.Any())
+            if (registerDto.DocumentFiles != null && registerDto.DocumentFiles.Any())
             {
-                foreach (var documentDto in registerDto.Documents)
+                var names = registerDto.DocumentNames ?? new List<string>();
+                for (int i = 0; i < registerDto.DocumentFiles.Count; i++)
                 {
-                    var document = await UploadDocument(
-                        documentDto.DocumentFile, 
-                        vendor.Id,
-                        documentDto.DocumentName 
-                    );
-
+                    var docName = i < names.Count ? names[i] : $"Document {i + 1}";
+                    var document = await UploadDocument(registerDto.DocumentFiles[i], vendor.Id, docName);
                     if (document != null)
                         documents.Add(document);
                 }
@@ -652,23 +688,17 @@ namespace AlphaLogistics.API.Services
 
             var newDocuments = new List<DocumentMaster>();
 
-            if (updateDto.DocumentsToAdd != null && updateDto.DocumentsToAdd.Any())
+            if (updateDto.DocumentFiles != null && updateDto.DocumentFiles.Any())
             {
-                foreach (var documentDto in updateDto.DocumentsToAdd)
+                var names = updateDto.DocumentNames ?? new List<string>();
+                for (int i = 0; i < updateDto.DocumentFiles.Count; i++)
                 {
-                   
-                    if (string.IsNullOrWhiteSpace(documentDto.DocumentName))
-                        throw new Exception("Document name is required for all documents");
+                    var file = updateDto.DocumentFiles[i];
+                    if (file == null || file.Length == 0)
+                        continue;
 
-                    if (documentDto.DocumentFile == null || documentDto.DocumentFile.Length == 0)
-                        throw new Exception("Document file is required for all documents");
-
-                    var document = await UploadDocument(
-                        documentDto.DocumentFile,  
-                        vendor.Id,
-                        documentDto.DocumentName    
-                    );
-
+                    var docName = i < names.Count ? names[i] : $"Document {i + 1}";
+                    var document = await UploadDocument(file, vendor.Id, docName);
                     if (document != null)
                         newDocuments.Add(document);
                 }
@@ -860,11 +890,14 @@ namespace AlphaLogistics.API.Services
             var vendor = await _context.VendorMasters
                 .Include(v => v.UserMaster)
                     .ThenInclude(u => u.RoleMaster)
-                .Include(v => v.Documents)
                 .FirstOrDefaultAsync(v => v.Id == vendorId);
 
             if (vendor == null)
                 throw new Exception("Vendor not found");
+
+            var documents = await _context.DocumentMasters
+                .Where(d => d.VendorId == vendorId)
+                .ToListAsync();
 
             return new VendorResponseDto
             {
@@ -886,7 +919,7 @@ namespace AlphaLogistics.API.Services
                 CustomerType = vendor.CustomerType,
                 CreatedBy = vendor.CreatedBy,
                 UpdatedBy = vendor.UpdatedBy,
-             
+
                 // Timestamps
                 CreatedAt = vendor.CreatedAt,
                 IsActive = vendor.IsActive,
@@ -900,13 +933,13 @@ namespace AlphaLogistics.API.Services
                 Role = vendor.UserMaster.RoleMaster?.Name ?? "Vendor",
 
                 // Documents
-                Documents = vendor.Documents?.Select(d => new VendorDocumentDto
+                Documents = documents.Select(d => new VendorDocumentDto
                 {
                     DocumentId = d.Id,
                     DocumentName = d.DocumentName,
                     DocumentUrl = d.DocumentUrl,
                     UploadedAt = d.UploadedAt
-                }).ToList() ?? new List<VendorDocumentDto>()
+                }).ToList()
             };
         }
 

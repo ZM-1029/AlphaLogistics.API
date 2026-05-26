@@ -7,7 +7,7 @@ namespace AlphaLogistics.API.Services
         public  Task<bool> UpdateOrder(int orderId, OrderDTO order);
         public  Task<int> OrderCount(OrderListDTO data);
         public  Task<bool> AssignPradesh(int orderId, int pradeshId);
-        public Task<int> PlaceOrder(OrderDTO orders);
+        public Task<(int OrderId, string OrderNumber)> PlaceOrder(OrderDTO orders);
         public  Task<List<dynamic>?> GetOrderList(OrderListDTO data);
         public  Task<dynamic?> GetOrderById(int orderId);
         //public Task<bool> EditOrder(OrderDTO orders);
@@ -17,5 +17,6 @@ namespace AlphaLogistics.API.Services
         public  Task<dynamic> OrderTrackingData(int orderId);
         public  Task<byte[]> ExportOrdersToExcelAsync(int? userId, DateTime? from, DateTime? to, int? statusId);
         public Task<DeliveryLabelDto?> GetDeliveryLabelData(int orderId);
+        public Task<bool> UploadPaymentProof(int orderId, IFormFile file);
     }
 }
