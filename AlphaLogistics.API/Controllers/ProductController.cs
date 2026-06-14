@@ -111,6 +111,24 @@ namespace AlphaLogistics.API.Controllers
 
         [HttpPost]
         [AllowAnonymous]
+        public async Task<IActionResult> ApprovedProductList(ProductQueryDto dto)
+        {
+            try
+            {
+                dto.isActive = true;
+                dto.isApproved = true;
+                var result = await _productService.GetAllProductsAsync(dto);
+                return SuccessResponse(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting approved products");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> GetActiveProducts()
         {
             try
@@ -189,6 +207,21 @@ namespace AlphaLogistics.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error updating product {productId} for vendor {vendorId}");
+                return ErrorResponse<string>(ex.Message);
+            }
+        }
+
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> ActivateProduct(int id)
+        {
+            try
+            {
+                var result = await _productService.RestoreProductAsync(id);
+                return SuccessResponse(result, "Product activated successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error activating product {id}");
                 return ErrorResponse<string>(ex.Message);
             }
         }

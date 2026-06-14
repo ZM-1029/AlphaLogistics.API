@@ -29,6 +29,9 @@ namespace AlphaLogistics.API.Model
         public int? PaymentTypeId { get; set; }
         public string? PaymentUrl { get; set; }
 
+        /// <summary>null = not applicable | 1 = Payment Transfer Pending | 2 = Payment Successfully Transferred</summary>
+        public int? PaymentTransferStatus { get; set; }
+
 
         public UserMaster? UserMaster { get; set; }
         public ICollection<OrderItems>? OrderItems { get; set; }

@@ -23,6 +23,10 @@ namespace AlphaLogistics.API.DTO
         /// <summary>Product size (e.g. S, M, L, XL).</summary>
         public string? Size { get; set; }
         public List<IFormFile>? ProductImages { get; set; }
-        public List<string>? ImagesToDelete { get; set; } // URLs of images to delete
+        public List<int>? ImagesToDelete { get; set; }
+        public string? BrandName { get; set; }
+        public string? Warranty { get; set; }
+        public IFormFile? ProductVideo { get; set; }
+        public bool DeleteVideo { get; set; } = false;
     }
 }

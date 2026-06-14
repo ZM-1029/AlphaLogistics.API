@@ -30,6 +30,14 @@ namespace AlphaLogistics.API.Services
             if (existingOrder != null)
             {
                 existingOrder.Status = statusId;
+
+                // Auto-set payment transfer pending when order is delivered
+                // COD: cash collected on delivery | Online: payment already received
+                if (statusId == AppConstants.OrderStatus.Delivered
+                    && existingOrder.PaymentTransferStatus == null)
+                {
+                    existingOrder.PaymentTransferStatus = 1; // Payment Transfer Pending
+                }
                // _context.SaveChanges();
 
                 var existingStatus = _context.OrderStatusHistory
@@ -270,7 +278,7 @@ namespace AlphaLogistics.API.Services
                     Remark = order.Remark,
                     PradeshId = order.PradeshId,
                     PaymentTypeId = order.PaymentTypeId,
-                    PaymentUrl = order.PaymentUrl,
+                   // PaymentUrl = order.PaymentUrl,
                 };
 
                 using (var transaction = await _context.Database.BeginTransactionAsync())

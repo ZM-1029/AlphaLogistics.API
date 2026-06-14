@@ -31,5 +31,7 @@ namespace AlphaLogistics.API.DTO
 
            public string? sortOrder { get; set; } = "desc";
            public string? globalSearchQuery { get; set; } = null;
+           public bool? isActive { get; set; } = null;
+           public bool? isApproved { get; set; } = null;
     }
 }

@@ -32,6 +32,9 @@ namespace AlphaLogistics.API.DTO
         public string? Size { get; set; }
 
         public List<IFormFile>? ProductImages { get; set; }
+        public string? BrandName { get; set; }
+        public string? Warranty { get; set; }
+        public IFormFile? ProductVideo { get; set; }
     }
 
    

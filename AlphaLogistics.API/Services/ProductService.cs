@@ -66,12 +66,51 @@ namespace AlphaLogistics.API.Services
                 return;
 
             var fileName = Path.GetFileName(imageUrl);
-            var filePath = Path.Combine(_environment.WebRootPath, "uploads", "products", fileName);
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "products", fileName);
 
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
             }
+        }
+
+        private static readonly HashSet<string> AllowedVideoExtensions =
+            new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".mov", ".avi", ".mkv", ".webm" };
+        private const long MaxVideoSizeBytes = 50 * 1024 * 1024; // 50 MB
+
+        private async Task<string?> UploadProductVideo(IFormFile? video)
+        {
+            if (video == null || video.Length == 0) return null;
+
+            var ext = Path.GetExtension(video.FileName);
+            if (!AllowedVideoExtensions.Contains(ext))
+                throw new Exception($"Invalid video format. Allowed: {string.Join(", ", AllowedVideoExtensions)}");
+
+            if (video.Length > MaxVideoSizeBytes)
+                throw new Exception("Video file exceeds the 50MB size limit");
+
+            var currDirectory = Directory.GetCurrentDirectory();
+            var uploadsFolder = Path.Combine(currDirectory, "uploads", "videos");
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(video.FileName)}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await video.CopyToAsync(fileStream);
+            }
+
+            return $"/uploads/videos/{uniqueFileName}";
+        }
+
+        private void DeleteVideoFile(string? videoUrl)
+        {
+            if (string.IsNullOrEmpty(videoUrl)) return;
+            var fileName = Path.GetFileName(videoUrl);
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "videos", fileName);
+            if (File.Exists(filePath)) File.Delete(filePath);
         }
 
         // Create Product
@@ -127,8 +166,8 @@ namespace AlphaLogistics.API.Services
                 throw new Exception($"Product with name '{createDto.ProductName}' already exists for this vendor");
 
             var imageUrls = await UploadProductImages(createDto.ProductImages);
+            var videoUrl = await UploadProductVideo(createDto.ProductVideo);
 
-   
             var product = new ProductMaster
             {
                 VendorId = VendorId,
@@ -143,7 +182,10 @@ namespace AlphaLogistics.API.Services
                 Size = string.IsNullOrWhiteSpace(createDto.Size) ? null : createDto.Size.Trim(),
                 CreatedAt = DateTime.UtcNow,
                 LastUpdatedAt = DateTime.UtcNow,
-                CostPrice= createDto.CostPrice,
+                CostPrice = createDto.CostPrice,
+                BrandName = createDto.BrandName,
+                Warranty = createDto.Warranty,
+                VideoUrl = videoUrl,
                 IsActive = true
             };
 
@@ -218,10 +260,12 @@ namespace AlphaLogistics.API.Services
 
 
             // Apply filters
-            /*if (dto.isActive!=null && dto.isActive.HasValue)
-            {
+            if (dto.isActive.HasValue)
                 query = query.Where(p => p.IsActive == dto.isActive.Value);
-            }*/
+
+            if (dto.isApproved.HasValue)
+                query = query.Where(p => p.IsApproved == dto.isApproved.Value);
+
             if (dto.IsComboType.HasValue)
             {
                 query = query.Where(p => p.IsComboType ==dto.IsComboType);
@@ -359,7 +403,7 @@ namespace AlphaLogistics.API.Services
                 IsApproved = product.IsApproved,
                 //ComboProductIds = _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x=>x.ComboProductId).ToList(),
                 ComboProducts= _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x =>new ComboDTO { Id=x.ComboProductId,
-                    Name=_context.ProductMasters.FirstOrDefault(x=>x.Id==x.Id)!.ProductName }).ToList(),
+                    Name=_context.ProductMasters.FirstOrDefault(p=>p.Id==x.ComboProductId)!.ProductName }).ToList(),
                 VendorId = product.VendorId,
                 VendorName = product.VendorMaster?.VendorName ?? "Unknown Vendor",
 
@@ -371,6 +415,9 @@ namespace AlphaLogistics.API.Services
                 CostPrice= product.CostPrice,
                 Colours = product.Colours,
                 Size = product.Size,
+                BrandName = product.BrandName,
+                Warranty = product.Warranty,
+                VideoUrl = product.VideoUrl,
                 ProductImages = product.ProductImages?.Select(pi => new ProductImageDto
                 {
                     Id = pi.Id,
@@ -482,8 +529,25 @@ namespace AlphaLogistics.API.Services
                 product.Colours = NormalizeColours(updateDto.Colours);
             if (updateDto.Size != null)
                 product.Size = string.IsNullOrWhiteSpace(updateDto.Size) ? null : updateDto.Size.Trim();
+            if (updateDto.BrandName != null)
+                product.BrandName = updateDto.BrandName;
+            if (updateDto.Warranty != null)
+                product.Warranty = updateDto.Warranty;
+
+            // Video handling
+            if (updateDto.DeleteVideo)
+            {
+                DeleteVideoFile(product.VideoUrl);
+                product.VideoUrl = null;
+            }
+            else if (updateDto.ProductVideo != null)
+            {
+                DeleteVideoFile(product.VideoUrl); // remove old video before replacing
+                product.VideoUrl = await UploadProductVideo(updateDto.ProductVideo);
+            }
+
             product.LastUpdatedAt = DateTime.UtcNow;
-            product.IsApproved = false; // Mark as unapproved after update
+            product.IsApproved = false;
             // Handle images
             if (updateDto.ProductImages != null && updateDto.ProductImages.Any())
             {
@@ -512,20 +576,17 @@ namespace AlphaLogistics.API.Services
                // await _context.SaveChangesAsync();
             }
 
-            // Delete specified images
+            // Delete specified images by ID
             if (updateDto.ImagesToDelete != null && updateDto.ImagesToDelete.Any())
             {
                 var imagesToDelete = await _context.ProductImages
-                    .Where(pi => pi.ProductId == productId && updateDto.ImagesToDelete.Contains(pi.ImageUrl))
+                    .Where(pi => pi.ProductId == productId && updateDto.ImagesToDelete.Contains(pi.Id))
                     .ToListAsync();
 
-                _context.ProductImages.RemoveRange(imagesToDelete);
+                foreach (var img in imagesToDelete)
+                    DeleteImageFile(img.ImageUrl);
 
-                // Delete physical files
-                foreach (var imageUrl in updateDto.ImagesToDelete)
-                {
-                    DeleteImageFile(imageUrl);
-                }
+                _context.ProductImages.RemoveRange(imagesToDelete);
             }
 
             await _context.SaveChangesAsync();

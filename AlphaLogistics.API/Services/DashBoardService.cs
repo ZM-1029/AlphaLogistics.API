@@ -58,11 +58,23 @@ namespace AlphaLogistics.API.Services
                 .SumAsync(x => x.UnitPrice * x.Quantity);
 
             var totalOrders = await validOrdersQuery.CountAsync();
-            var cancelOrRefundedOrders = await _context.OrderMasters
-                .Where(x => orderIdsQuery.Contains(x.Id) &&
-                            (x.Status == AppConstants.OrderStatus.Cancelled ||
-                             x.Status == AppConstants.OrderStatus.Refunded))
-                .CountAsync();
+
+            // Per-status count for ALL orders belonging to this vendor (including cancelled/refunded)
+            var rawStatusCounts = await _context.OrderMasters
+                .Where(x => orderIdsQuery.Contains(x.Id))
+                .GroupBy(x => x.Status)
+                .Select(g => new { StatusId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var statusBreakdown = rawStatusCounts
+                .Select(x => new
+                {
+                    StatusId   = x.StatusId,
+                    StatusName = orderStatusList?.FirstOrDefault(s => s.Id == x.StatusId)?.Name ?? "Unknown",
+                    Count      = x.Count
+                })
+                .OrderBy(x => x.StatusId)
+                .ToList();
 
             // Step 1: Get IDs of orders that contain at least one item from this vendor's products
             var vendorOrderIds = await validOrdersQuery.Select(x => x.Id).ToListAsync();
@@ -130,8 +142,7 @@ namespace AlphaLogistics.API.Services
             {
                 TotalRevenue = totalRevenue,
                 TotalOrders = totalOrders,
-                DeliveredOrders = totalOrders,
-                CancelOrRefundedOrders = cancelOrRefundedOrders,
+                StatusBreakdown = statusBreakdown,
                 VendorCount = 1,
                 OrderList = Response
             };
@@ -142,12 +153,25 @@ namespace AlphaLogistics.API.Services
                 .Where(x => x.Status != AppConstants.OrderStatus.Cancelled &&
                             x.Status != AppConstants.OrderStatus.Refunded);
 
-            var totalRevenue          = await validOrdersQuery.SumAsync(x => x.TotalAmount);
-            var totalOrders           = await validOrdersQuery.CountAsync();
-            var cancelOrRefundedOrders = await _context.OrderMasters
-                .CountAsync(x => x.Status == AppConstants.OrderStatus.Cancelled ||
-                                 x.Status == AppConstants.OrderStatus.Refunded);
-            var vendorCount = await _context.VendorMasters.CountAsync();
+            var totalRevenue = await validOrdersQuery.SumAsync(x => x.TotalAmount);
+            var totalOrders  = await validOrdersQuery.CountAsync();
+            var vendorCount  = await _context.VendorMasters.CountAsync();
+
+            // Per-status count across ALL orders (including cancelled/refunded)
+            var rawStatusCounts = await _context.OrderMasters
+                .GroupBy(x => x.Status)
+                .Select(g => new { StatusId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var statusBreakdown = rawStatusCounts
+                .Select(x => new
+                {
+                    StatusId   = x.StatusId,
+                    StatusName = orderStatusList?.FirstOrDefault(s => s.Id == x.StatusId)?.Name ?? "Unknown",
+                    Count      = x.Count
+                })
+                .OrderBy(x => x.StatusId)
+                .ToList();
 
             // Step 1: get IDs of all valid orders so the LEFT JOIN below is not filtered by status inline
             var allValidOrderIds = await validOrdersQuery.Select(x => x.Id).ToListAsync();
@@ -215,8 +239,7 @@ namespace AlphaLogistics.API.Services
             {
                 TotalRevenue = totalRevenue,
                 TotalOrders = totalOrders,
-                DeliveredOrders = totalOrders,
-                CancelOrRefundedOrders = cancelOrRefundedOrders,
+                StatusBreakdown = statusBreakdown,
                 VendorCount = vendorCount,
                 OrderList = Response
             };

@@ -73,6 +73,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 
 // CORS
 builder.Services.AddCors(options =>
@@ -86,7 +87,9 @@ builder.Services.AddCors(options =>
                         "https://zoumapushpak.com:442",
                         "https://zoumapushpak.com:449",
                         "http://116.202.184.119",
-                        "http://116.202.184.119:8080"
+                        "http://116.202.184.119:8080",
+                        "http://176.103.218.20",
+                        "http://176.103.218.20:8080"
                     )
                    .AllowAnyMethod()
                    .AllowAnyHeader()

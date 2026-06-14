@@ -31,6 +31,9 @@ namespace AlphaLogistics.API.DTO
         /// <summary>Product size (e.g. S, M, L, XL).</summary>
         public string? Size { get; set; }
         public List<ProductImageDto> ProductImages { get; set; } = new();
+        public string? BrandName { get; set; }
+        public string? Warranty { get; set; }
+        public string? VideoUrl { get; set; }
     }
 
     public class ComboDTO

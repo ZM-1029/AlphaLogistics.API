@@ -20,7 +20,7 @@ namespace AlphaLogistics.API.DTO
         public string? Remark { get; set; }
         public decimal? TotalAmount { get; set; }
         public int? PaymentTypeId { get; set; }
-        public string? PaymentUrl { get; set; }
+        //public string? PaymentUrl { get; set; }
         public List<OrderItemDTO> OrderItems { get; set; }
     }
 
