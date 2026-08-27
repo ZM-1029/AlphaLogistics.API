@@ -7,6 +7,10 @@ namespace AlphaLogistics.API.DTO
         public string ProductName { get; set; } 
         public string? SKU { get; set; } 
         public string Description { get; set; }
+        /// <summary>Technical product specifications, shown separately from the description.</summary>
+        public string? Specification { get; set; }
+        /// <summary>List of items included in the box (what comes in the box).</summary>
+        public string? WhatsInTheBox { get; set; }
         public decimal Price { get; set; }
         public decimal? CostPrice { get; set; }
 
@@ -24,6 +28,7 @@ namespace AlphaLogistics.API.DTO
         public int SubCategoryId { get; set; }
         public string SubCategoryName { get; set; }
         public bool IsComboType { get; set; }
+        public bool IsFlashSale { get; set; }
         //public List<int>? ComboProductIds { get; set; }
         public List<ComboDTO>? ComboProducts { get; set; }
         /// <summary>Colours as comma-separated string (e.g. Red,Blue,Green).</summary>

@@ -7,7 +7,13 @@ namespace AlphaLogistics.API.DTO
         public string? ProductName { get; set; }
         public bool IsComboType { get; set; } = false;
         public List<int>? ComboProductIds { get; set; }
+        /// <summary>When true, the product is marked as a Flash Sale item.</summary>
+        public bool IsFlashSale { get; set; } = false;
         public string? Description { get; set; }
+        /// <summary>Technical product specifications, shown separately from the description.</summary>
+        public string? Specification { get; set; }
+        /// <summary>List of items included in the box (what comes in the box).</summary>
+        public string? WhatsInTheBox { get; set; }
 
         [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
         public decimal? Price { get; set; }

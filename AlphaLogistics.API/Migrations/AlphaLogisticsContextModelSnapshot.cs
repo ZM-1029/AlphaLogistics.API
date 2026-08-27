@@ -239,6 +239,9 @@ namespace AlphaLogistics.API.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<bool>("IsFlashSale")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("LastUpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -249,8 +252,14 @@ namespace AlphaLogistics.API.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Specification")
+                        .HasColumnType("text");
+
                     b.Property<int>("StockQuantity")
                         .HasColumnType("integer");
+
+                    b.Property<string>("WhatsInTheBox")
+                        .HasColumnType("text");
 
                     b.Property<int>("SubCategoryId")
                         .HasColumnType("integer");

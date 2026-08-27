@@ -4,6 +4,8 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<!-- Never enumerate a stray publish output folder as project items (prevents recursive publish\publish\... nesting). -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);publish\**</DefaultItemExcludes>
 	</PropertyGroup>
 
 	<ItemGroup>

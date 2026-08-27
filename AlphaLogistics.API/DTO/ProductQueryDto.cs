@@ -10,6 +10,8 @@ namespace AlphaLogistics.API.DTO
 
            public bool? IsComboType { get; set; } = null;
 
+           public bool? IsFlashSale { get; set; } = null;
+
            public int? categoryId { get; set; } = null;
            public int? VendorId { get; set; } = null;
 

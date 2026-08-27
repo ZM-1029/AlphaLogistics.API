@@ -151,10 +151,17 @@ namespace AlphaLogistics.API.Services
 
         // ─── Public API ──────────────────────────────────────────────────────────
 
+        // OrderDate is 'timestamp with time zone'; Npgsql requires UTC DateTimes for comparisons.
+        // Query-string dates bind as Kind=Unspecified, so coerce them to UTC.
+        private static DateTime? ToUtc(DateTime? value) =>
+            value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
+
         public async Task<object?> GetAccountStatement(int? vendorId, DateTime? startDate, DateTime? endDate)
         {
             try
             {
+                startDate = ToUtc(startDate);
+                endDate = ToUtc(endDate);
                 var statusMap = GetOrderStatusMap();
 
                 if (vendorId.HasValue && vendorId > 0)
@@ -240,6 +247,8 @@ namespace AlphaLogistics.API.Services
 
         public async Task<byte[]> ExportAccountStatement(int? vendorId, DateTime? startDate, DateTime? endDate)
         {
+            startDate = ToUtc(startDate);
+            endDate = ToUtc(endDate);
             var statusMap = GetOrderStatusMap();
             var sb = new StringBuilder();
 

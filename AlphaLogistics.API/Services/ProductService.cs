@@ -174,8 +174,11 @@ namespace AlphaLogistics.API.Services
                 SKU = $"SKU-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                 SubCategoryId = createDto.SubCategoryId,
                 IsComboType=createDto.IsComboType,
+                IsFlashSale = createDto.IsFlashSale,
                 ProductName = createDto.ProductName,
                 Description = createDto.Description,
+                Specification = createDto.Specification,
+                WhatsInTheBox = createDto.WhatsInTheBox,
                 Price = createDto.Price,
                 StockQuantity = createDto.StockQuantity,
                 Colours = NormalizeColours(createDto.Colours),
@@ -269,6 +272,10 @@ namespace AlphaLogistics.API.Services
             if (dto.IsComboType.HasValue)
             {
                 query = query.Where(p => p.IsComboType ==dto.IsComboType);
+            }
+            if (dto.IsFlashSale.HasValue)
+            {
+                query = query.Where(p => p.IsFlashSale == dto.IsFlashSale);
             }
             if (dto.categoryId.HasValue && dto.categoryId>0)
             {
@@ -393,6 +400,8 @@ namespace AlphaLogistics.API.Services
                 Id = product.Id,
                 ProductName = product.ProductName, // Changed from Name to ProductName
                 Description = product.Description,
+                Specification = product.Specification,
+                WhatsInTheBox = product.WhatsInTheBox,
                 Price = product.Price,
                 StockQuantity = product.StockQuantity,
                 IsActive = product.IsActive,
@@ -400,6 +409,7 @@ namespace AlphaLogistics.API.Services
                 LastUpdatedAt = product.LastUpdatedAt,
                 SKU = product.SKU,
                 IsComboType = product.IsComboType,
+                IsFlashSale = product.IsFlashSale,
                 IsApproved = product.IsApproved,
                 //ComboProductIds = _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x=>x.ComboProductId).ToList(),
                 ComboProducts= _context.ProductCombos.Where(x => x.ParentProductId == product.Id).Select(x =>new ComboDTO { Id=x.ComboProductId,
@@ -503,6 +513,12 @@ namespace AlphaLogistics.API.Services
             if (!string.IsNullOrEmpty(updateDto.Description))
                 product.Description = updateDto.Description;
 
+            if (updateDto.Specification != null)
+                product.Specification = updateDto.Specification;
+
+            if (updateDto.WhatsInTheBox != null)
+                product.WhatsInTheBox = updateDto.WhatsInTheBox;
+
             if (updateDto.Price.HasValue)
                 product.Price = updateDto.Price.Value;
 
@@ -524,6 +540,7 @@ namespace AlphaLogistics.API.Services
                 product.IsActive = updateDto.IsActive.Value;
 
             product.IsComboType = updateDto.IsComboType;
+            product.IsFlashSale = updateDto.IsFlashSale;
             product.CostPrice= updateDto.CostPrice;
             if (updateDto.Colours != null)
                 product.Colours = NormalizeColours(updateDto.Colours);
